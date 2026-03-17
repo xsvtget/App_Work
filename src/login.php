@@ -83,20 +83,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         <p>No account yet? <a href="register.php">Register here</a></p>
     </div>
-    <script>
-if ("serviceWorker" in navigator) {
-    window.addEventListener("load", function () {
-        navigator.serviceWorker.register("sw.js")
-            .then(function () {
-                console.log("Service Worker registered");
-            })
-            .catch(function (error) {
-                console.log("Service Worker registration failed:", error);
-            });
-    });
-}
-</script>
-<script>
+    
+<!--<script>
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", function () {
       navigator.serviceWorker.register("/sw.js")
@@ -108,6 +96,6 @@ if ("serviceWorker" in navigator) {
         });
     });
   }
-</script>
+</script>-->
 </body>
 </html>

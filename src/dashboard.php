@@ -1,4 +1,6 @@
 <?php
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
 session_start();
 
 if (!isset($_SESSION["user_id"])) {
@@ -1135,7 +1137,7 @@ document.getElementById('excelImportForm').addEventListener('submit', async func
     e.target.submit();
 });
 </script>
-<script>
+<!--<script>
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", function () {
       navigator.serviceWorker.register("/sw.js")
@@ -1147,7 +1149,7 @@ document.getElementById('excelImportForm').addEventListener('submit', async func
         });
     });
   }
-</script>
+</script> -->
 
 </body>
 

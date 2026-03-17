@@ -343,8 +343,8 @@ $conn->close();
             <button type="submit">Save profile</button>
         </form>
     </div>
-    <script>
-  if ("serviceWorker" in navigator) {
+ <!--   <script>
+ if ("serviceWorker" in navigator) {
     window.addEventListener("load", function () {
       navigator.serviceWorker.register("/sw.js")
         .then(function (registration) {
@@ -355,6 +355,6 @@ $conn->close();
         });
     });
   }
-</script>
+</script>-->
 </body>
 </html>
