@@ -1,0 +1,1145 @@
+<?php
+session_start();
+
+if (!isset($_SESSION["user_id"])) {
+    header("Location: login.php");
+    exit();
+}
+
+$host = "db";
+$dbname = getenv("MARIADB_DATABASE");
+$username = getenv("MARIADB_USER");
+$password = getenv("MARIADB_APP_PASSWORD");
+
+$conn = new mysqli($host, $username, $password, $dbname);
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+$user_id = (int)$_SESSION["user_id"];
+
+$user_name = $_SESSION["username"] ?? "User";
+$profile_image = null;
+
+$stmtUser = $conn->prepare("SELECT profile_image FROM users WHERE id = ?");
+$stmtUser->bind_param("i", $user_id);
+$stmtUser->execute();
+$userResult = $stmtUser->get_result();
+
+if ($userResult && $userResult->num_rows === 1) {
+    $userRow = $userResult->fetch_assoc();
+    $profile_image = $userRow["profile_image"] ?? null;
+}
+$stmtUser->close();
+
+function decimalToTime($value) {
+    if ($value === null || $value === '') return null;
+
+    $num = floatval($value);
+    $hours = floor($num);
+    $minutes = round(($num - $hours) * 60);
+
+    if ($minutes >= 60) {
+        $hours += 1;
+        $minutes = 0;
+    }
+
+    return sprintf('%02d:%02d:00', $hours, $minutes);
+}
+
+function formatTimeForInput($time) {
+    if (!$time) return '';
+    return substr($time, 0, 5);
+}
+
+function calculateHours($start, $end) {
+    if (!$start || !$end) return 0;
+    $startTs = strtotime($start);
+    $endTs = strtotime($end);
+    if ($endTs <= $startTs) return 0;
+    return round(($endTs - $startTs) / 3600, 2);
+}
+
+if ($_SERVER["REQUEST_METHOD"] === "POST") {
+    if (isset($_POST["action"]) && $_POST["action"] === "save_shift") {
+        $id = !empty($_POST["id"]) ? (int)$_POST["id"] : 0;
+        $work_date = $_POST["work_date"] ?? '';
+        $start_time = !empty($_POST["start_time"]) ? $_POST["start_time"] . ':00' : null;
+        $end_time = !empty($_POST["end_time"]) ? $_POST["end_time"] . ':00' : null;
+        $workplace = trim($_POST["workplace"] ?? 'Sabi Madla');
+        $color = trim($_POST["color"] ?? '#3b82f6');
+
+        if ($id > 0) {
+            $stmt = $conn->prepare("
+                UPDATE work_shifts
+                SET work_date = ?, start_time = ?, end_time = ?, workplace = ?, color = ?
+                WHERE id = ? AND user_id = ?
+            ");
+            $stmt->bind_param("sssssii", $work_date, $start_time, $end_time, $workplace, $color, $id, $user_id);
+            $stmt->execute();
+            $stmt->close();
+        } else {
+            $stmt = $conn->prepare("
+                INSERT INTO work_shifts (user_id, work_date, start_time, end_time, workplace, color)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ");
+            $stmt->bind_param("isssss", $user_id, $work_date, $start_time, $end_time, $workplace, $color);
+            $stmt->execute();
+            $stmt->close();
+        }
+
+        header("Location: dashboard.php?selected_date=" . urlencode($work_date));
+        exit();
+    }
+
+    if (isset($_POST["action"]) && $_POST["action"] === "delete_shift") {
+        $id = (int)($_POST["id"] ?? 0);
+        $selected_date = $_POST["selected_date"] ?? date("Y-m-d");
+
+        if ($id > 0) {
+            $stmt = $conn->prepare("DELETE FROM work_shifts WHERE id = ? AND user_id = ?");
+            $stmt->bind_param("ii", $id, $user_id);
+            $stmt->execute();
+            $stmt->close();
+        }
+
+        header("Location: dashboard.php?selected_date=" . urlencode($selected_date));
+        exit();
+    }
+
+    if (isset($_POST["action"]) && $_POST["action"] === "import_excel") {
+        $json = $_POST["excel_data"] ?? '[]';
+        $defaultWorkplace = trim($_POST["import_workplace"] ?? 'Sabi Madla');
+        $defaultColor = trim($_POST["import_color"] ?? '#3b82f6');
+        $rows = json_decode($json, true);
+
+        if (is_array($rows)) {
+            $stmt = $conn->prepare("
+                INSERT INTO work_shifts (user_id, work_date, start_time, end_time, workplace, color)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ");
+
+            foreach ($rows as $row) {
+                $work_date = $row["work_date"] ?? null;
+                $start_time = isset($row["start_decimal"]) ? decimalToTime($row["start_decimal"]) : null;
+                $end_time = isset($row["end_decimal"]) ? decimalToTime($row["end_decimal"]) : null;
+
+                if ($work_date && $start_time && $end_time) {
+                    $stmt->bind_param("isssss", $user_id, $work_date, $start_time, $end_time, $defaultWorkplace, $defaultColor);
+                    $stmt->execute();
+                }
+            }
+
+            $stmt->close();
+        }
+
+        header("Location: dashboard.php");
+        exit();
+    }
+}
+
+$month = isset($_GET["month"]) ? (int)$_GET["month"] : (int)date("n");
+$year = isset($_GET["year"]) ? (int)$_GET["year"] : (int)date("Y");
+
+if ($month < 1) { $month = 12; $year--; }
+if ($month > 12) { $month = 1; $year++; }
+
+$firstDay = mktime(0, 0, 0, $month, 1, $year);
+$daysInMonth = (int)date("t", $firstDay);
+$firstWeekDay = (int)date("N", $firstDay);
+
+$monthNames = [
+    1 => "January", 2 => "February", 3 => "March", 4 => "April",
+    5 => "May", 6 => "June", 7 => "July", 8 => "August",
+    9 => "September", 10 => "October", 11 => "November", 12 => "December"
+];
+
+$prevMonth = $month - 1;
+$prevYear = $year;
+if ($prevMonth < 1) { $prevMonth = 12; $prevYear--; }
+
+$nextMonth = $month + 1;
+$nextYear = $year;
+if ($nextMonth > 12) { $nextMonth = 1; $nextYear++; }
+
+$selectedDate = $_GET["selected_date"] ?? date("Y-m-d");
+
+$stmt = $conn->prepare("
+    SELECT id, work_date, start_time, end_time, workplace, color
+    FROM work_shifts
+    WHERE user_id = ? AND MONTH(work_date) = ? AND YEAR(work_date) = ?
+    ORDER BY work_date, start_time
+");
+$stmt->bind_param("iii", $user_id, $month, $year);
+$stmt->execute();
+$result = $stmt->get_result();
+
+$calendarShifts = [];
+$monthlyHours = 0;
+$workplaceTotals = [];
+$workplaceColors = [];
+
+while ($row = $result->fetch_assoc()) {
+    $hours = calculateHours($row["start_time"], $row["end_time"]);
+    $row["hours"] = $hours;
+    $calendarShifts[$row["work_date"]][] = $row;
+    $monthlyHours += $hours;
+
+    if (!isset($workplaceTotals[$row["workplace"]])) {
+        $workplaceTotals[$row["workplace"]] = 0;
+    }
+    $workplaceTotals[$row["workplace"]] += $hours;
+
+    if (!isset($workplaceColors[$row["workplace"]])) {
+        $workplaceColors[$row["workplace"]] = $row["color"];
+    }
+}
+$stmt->close();
+
+$stmt = $conn->prepare("
+    SELECT id, work_date, start_time, end_time, workplace, color
+    FROM work_shifts
+    WHERE user_id = ? AND work_date = ?
+    ORDER BY start_time
+");
+$stmt->bind_param("is", $user_id, $selectedDate);
+$stmt->execute();
+$selectedResult = $stmt->get_result();
+
+$selectedShifts = [];
+$dayTotal = 0;
+while ($row = $selectedResult->fetch_assoc()) {
+    $row["hours"] = calculateHours($row["start_time"], $row["end_time"]);
+    $dayTotal += $row["hours"];
+    $selectedShifts[] = $row;
+}
+$stmt->close();
+
+$editShift = null;
+if (isset($_GET["edit_id"])) {
+    $edit_id = (int)$_GET["edit_id"];
+    $stmt = $conn->prepare("
+        SELECT id, work_date, start_time, end_time, workplace, color
+        FROM work_shifts
+        WHERE id = ? AND user_id = ?
+        LIMIT 1
+    ");
+    $stmt->bind_param("ii", $edit_id, $user_id);
+    $stmt->execute();
+    $editResult = $stmt->get_result();
+    $editShift = $editResult->fetch_assoc();
+    $stmt->close();
+}
+
+if (!$editShift) {
+    $editShift = [
+        "id" => "",
+        "work_date" => $selectedDate,
+        "start_time" => "",
+        "end_time" => "",
+        "workplace" => "Sabi Madla",
+        "color" => "#3b82f6"
+    ];
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#20bdb7">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Planner">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Work Calendar</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f3f6fb;
+            color: #1f2937;
+        }
+
+        .app {
+            min-height: 100vh;
+            display: grid;
+            grid-template-columns: 1fr 360px;
+            gap: 18px;
+            padding: 16px;
+        }
+
+        .main,
+        .sidebar {
+            min-width: 0;
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 14px;
+        }
+
+        .month-nav {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .month-nav a {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: #ffffff;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #0f766e;
+            font-size: 24px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+            flex-shrink: 0;
+        }
+
+        .month-nav h1 {
+            margin: 0;
+            font-size: 28px;
+            color: #0f274f;
+        }
+
+        .summary {
+            background: #ffffff;
+            border-radius: 18px;
+            padding: 12px 16px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+            min-width: 190px;
+        }
+
+        .summary .label {
+            font-size: 14px;
+            color: #64748b;
+        }
+
+        .summary strong {
+            display: block;
+            font-size: 20px;
+            color: #0f766e;
+            margin-top: 2px;
+        }
+
+        .calendar-box,
+        .card,
+        details.card {
+            background: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.06);
+        }
+
+        .calendar-box {
+            padding: 14px;
+        }
+
+        .weekdays,
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .weekdays {
+            margin-bottom: 8px;
+        }
+
+        .weekdays div {
+            text-align: center;
+            font-size: 12px;
+            font-weight: bold;
+            color: #14b8a6;
+            padding: 6px 0;
+        }
+
+        .day {
+            display: block;
+            height: 96px;
+            min-height: 96px;
+            max-height: 96px;
+            background: #f8fafc;
+            border-radius: 14px;
+            padding: 8px;
+            text-decoration: none;
+            color: #111827;
+            box-shadow: inset 0 0 0 1px #e5e7eb;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .day.empty {
+            background: transparent;
+            box-shadow: none;
+            pointer-events: none;
+        }
+
+        .day.selected {
+            background: #ecfeff;
+            box-shadow: inset 0 0 0 2px #14b8a6;
+        }
+
+        .day-number {
+            font-weight: 700;
+            font-size: 14px;
+            display: inline-block;
+            margin-bottom: 6px;
+        }
+
+        .day-content {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .mini-shift {
+            width: 100%;
+            height: 8px;
+            border-radius: 999px;
+        }
+
+        .mini-more {
+            font-size: 10px;
+            color: #64748b;
+            font-weight: 600;
+            line-height: 1.1;
+        }
+
+        .desktop-time {
+            display: none;
+            font-size: 11px;
+            color: #334155;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .panel-day {
+            margin-top: 14px;
+            padding: 18px;
+        }
+
+        .panel-day h3 {
+            margin: 0 0 12px 0;
+            font-size: 18px;
+            color: #0f274f;
+        }
+
+        .shift-card {
+            border-radius: 16px;
+            padding: 12px;
+            margin-bottom: 10px;
+            background: #f8fafc;
+            border-left: 8px solid #3b82f6;
+        }
+
+        .shift-card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .shift-card h4 {
+            margin: 0 0 4px 0;
+            font-size: 18px;
+        }
+
+        .shift-meta {
+            font-size: 14px;
+            color: #475569;
+        }
+
+        .shift-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+
+        .action-link,
+        .action-btn {
+            text-decoration: none;
+            border: none;
+            border-radius: 10px;
+            padding: 9px 12px;
+            font-size: 14px;
+            cursor: pointer;
+            background: #e2e8f0;
+            color: #111827;
+        }
+
+        .action-btn.delete {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        details.card {
+            margin-top: 14px;
+            overflow: hidden;
+        }
+
+        details.card summary {
+            list-style: none;
+            cursor: pointer;
+            padding: 16px 18px;
+            font-size: 18px;
+            font-weight: 700;
+            color: #0f274f;
+        }
+
+        details.card summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details.card .inside {
+            padding: 0 18px 18px 18px;
+        }
+
+        .form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .form label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #334155;
+        }
+
+        .form input,
+        .form button {
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid #d1d5db;
+            font-size: 14px;
+        }
+
+        .form button {
+            border: none;
+            background: #14b8a6;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .import-btn {
+            background: #0ea5e9 !important;
+        }
+
+        .totals-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .totals-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 12px;
+            border-radius: 12px;
+            background: #f8fafc;
+        }
+
+        .totals-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .totals-left span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .small {
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        @media (min-width: 1100px) {
+            .desktop-time {
+                display: block;
+            }
+
+            .day {
+                height: 112px;
+                min-height: 112px;
+                max-height: 112px;
+            }
+        }
+
+        @media (max-width: 980px) {
+            .app {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 700px) {
+            .app {
+                padding: 10px;
+                gap: 12px;
+            }
+
+            .month-nav h1 {
+                font-size: 22px;
+            }
+
+            .summary {
+                width: 100%;
+                min-width: 0;
+            }
+
+            .calendar-box {
+                padding: 10px;
+            }
+
+            .weekdays,
+            .calendar-grid {
+                gap: 6px;
+            }
+
+            .weekdays div {
+                font-size: 11px;
+            }
+
+            .day {
+                height: 78px;
+                min-height: 78px;
+                max-height: 78px;
+                padding: 6px;
+                border-radius: 12px;
+            }
+
+            .day-number {
+                font-size: 13px;
+                margin-bottom: 4px;
+            }
+
+            .mini-shift {
+                height: 6px;
+                margin-top: 3px;
+            }
+
+            .mini-more {
+                font-size: 9px;
+                margin-top: 2px;
+            }
+
+            .panel-day {
+                padding: 14px;
+            }
+
+            details.card summary {
+                padding: 14px;
+                font-size: 17px;
+            }
+
+            details.card .inside {
+                padding: 0 14px 14px 14px;
+            }
+
+            .form input,
+            .form button {
+                font-size: 16px;
+            }
+
+            .shift-card {
+                padding: 10px;
+            }
+
+            .shift-card h4 {
+                font-size: 16px;
+            }
+
+            .shift-meta {
+                font-size: 13px;
+            }
+        }
+
+        .top-bar {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 18px;
+    margin-bottom: 14px;
+    box-sizing: border-box;
+}
+
+.top-bar-left {
+    display: flex;
+    align-items: center;
+}
+
+.top-bar-right {
+    display: flex;
+    align-items: center;
+}
+
+.hello-user {
+    font-size: 35px;
+    font-weight: 600;
+    color: #12304a;
+}
+
+.logout-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #e53935;
+    color: #fff;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 14px;
+    padding: 10px 15px;
+    border-radius: 14px;
+    box-shadow: 0 6px 14px rgba(229, 57, 53, 0.22);
+    transition: 0.2s ease;
+}
+
+.logout-btn:hover {
+    background: #d32f2f;
+    transform: translateY(-1px);
+}
+
+.logout-btn:active {
+    transform: translateY(0);
+}
+
+@media (max-width: 768px) {
+    .top-bar {
+        padding: 10px 12px;
+        margin-bottom: 10px;
+    }
+
+    .hello-user {
+        font-size: 30px;
+    }
+
+    .logout-btn {
+        font-size: 13px;
+        padding: 8px 12px;
+        border-radius: 12px;
+    }
+}
+
+.top-bar {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    margin-bottom: 14px;
+    box-sizing: border-box;
+    flex-wrap: wrap;
+}
+
+.user-profile-box {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.profile-avatar {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid #ffffff;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.10);
+    background: #e9eef3;
+}
+
+.fallback-avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    font-weight: 800;
+    color: #0d8a8a;
+    background: #dff6f6;
+}
+
+.user-profile-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.hello-user {
+    font-size: 16px;
+    font-weight: 700;
+    color: #12304a;
+}
+
+.top-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.profile-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #18b7b0;
+    color: #fff;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 14px;
+    padding: 10px 16px;
+    border-radius: 14px;
+    box-shadow: 0 6px 14px rgba(24, 183, 176, 0.22);
+    transition: 0.2s ease;
+}
+
+.profile-btn:hover {
+    background: #14a39d;
+    transform: translateY(-1px);
+}
+
+.logout-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #e53935;
+    color: #fff;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 14px;
+    padding: 10px 16px;
+    border-radius: 14px;
+    box-shadow: 0 6px 14px rgba(229, 57, 53, 0.22);
+    transition: 0.2s ease;
+}
+
+.logout-btn:hover {
+    background: #d32f2f;
+    transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
+    .top-bar {
+        padding: 10px 12px;
+        gap: 10px;
+    }
+
+    .profile-avatar {
+        width: 42px;
+        height: 42px;
+    }
+
+    .fallback-avatar {
+        font-size: 18px;
+    }
+
+    .hello-user {
+        font-size: 14px;
+    }
+
+    .top-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .profile-btn,
+    .logout-btn {
+        font-size: 13px;
+        padding: 8px 12px;
+        border-radius: 12px;
+    }
+}
+    </style>
+</head>
+<body>
+
+<div class="top-bar">
+    <div class="user-profile-box">
+        <?php if (!empty($profile_image) && file_exists(__DIR__ . '/' . $profile_image)): ?>
+            <img src="<?php echo htmlspecialchars($profile_image); ?>" alt="Profile" class="profile-avatar">
+        <?php else: ?>
+            <div class="profile-avatar fallback-avatar">
+                <?php echo strtoupper(substr($user_name, 0, 1)); ?>
+            </div>
+        <?php endif; ?>
+
+        <div class="user-profile-text">
+            <span class="hello-user"><?php echo htmlspecialchars($user_name); ?></span>
+        </div>
+    </div>
+
+    <div class="top-actions">
+        <a href="edit_profile.php" class="profile-btn">Profile</a>
+        <a href="logout.php" class="logout-btn">Logout</a>
+    </div>
+</div>
+
+<div class="app">
+    <div class="main">
+        <div class="topbar">
+            <div class="month-nav">
+                <a href="?month=<?php echo $prevMonth; ?>&year=<?php echo $prevYear; ?>&selected_date=<?php echo urlencode($selectedDate); ?>">&#10094;</a>
+                <h1><?php echo $monthNames[$month] . " " . $year; ?></h1>
+                <a href="?month=<?php echo $nextMonth; ?>&year=<?php echo $nextYear; ?>&selected_date=<?php echo urlencode($selectedDate); ?>">&#10095;</a>
+            </div>
+
+            <div class="summary">
+                <div class="label">Monthly total</div>
+                <strong><?php echo number_format($monthlyHours, 2); ?> h</strong>
+            </div>
+        </div>
+
+        <div class="calendar-box">
+            <div class="weekdays">
+                <div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div>
+                <div>Fri</div><div>Sat</div><div>Sun</div>
+            </div>
+
+            <div class="calendar-grid">
+                <?php
+                for ($i = 1; $i < $firstWeekDay; $i++) {
+                    echo '<div class="day empty"></div>';
+                }
+
+                for ($day = 1; $day <= $daysInMonth; $day++) {
+                    $dateString = sprintf("%04d-%02d-%02d", $year, $month, $day);
+                    $selectedClass = ($selectedDate === $dateString) ? ' selected' : '';
+
+                    echo '<a class="day' . $selectedClass . '" href="?month=' . $month . '&year=' . $year . '&selected_date=' . $dateString . '">';
+                    echo '<div class="day-number">' . $day . '</div>';
+                    echo '<div class="day-content">';
+
+                    if (isset($calendarShifts[$dateString])) {
+                        $count = 0;
+                        foreach ($calendarShifts[$dateString] as $shift) {
+                            if ($count >= 2) break;
+
+                            echo '<div class="mini-shift" style="background:' . htmlspecialchars($shift["color"]) . ';"></div>';
+                            echo '<div class="desktop-time">' .
+                                htmlspecialchars(formatTimeForInput($shift["start_time"])) .
+                                '-' .
+                                htmlspecialchars(formatTimeForInput($shift["end_time"])) .
+                                '</div>';
+                            $count++;
+                        }
+
+                        if (count($calendarShifts[$dateString]) > 2) {
+                            echo '<div class="mini-more">+' . (count($calendarShifts[$dateString]) - 2) . '</div>';
+                        }
+                    }
+
+                    echo '</div>';
+                    echo '</a>';
+                }
+                ?>
+            </div>
+        </div>
+
+        <div class="card panel-day">
+            <h3><?php echo htmlspecialchars($selectedDate); ?> — <?php echo number_format($dayTotal, 2); ?> h</h3>
+
+            <?php if (count($selectedShifts) > 0): ?>
+                <?php foreach ($selectedShifts as $shift): ?>
+                    <div class="shift-card" style="border-left-color: <?php echo htmlspecialchars($shift["color"]); ?>;">
+                        <div class="shift-card-top">
+                            <div>
+                                <h4><?php echo htmlspecialchars($shift["workplace"]); ?></h4>
+                                <div class="shift-meta">
+                                    <?php echo htmlspecialchars(formatTimeForInput($shift["start_time"])); ?>
+                                    -
+                                    <?php echo htmlspecialchars(formatTimeForInput($shift["end_time"])); ?>
+                                    ·
+                                    <?php echo number_format($shift["hours"], 2); ?> h
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="shift-actions">
+                            <a class="action-link" href="?month=<?php echo $month; ?>&year=<?php echo $year; ?>&selected_date=<?php echo urlencode($selectedDate); ?>&edit_id=<?php echo $shift["id"]; ?>#editShift">Edit</a>
+
+                            <form method="POST" style="margin:0;">
+                                <input type="hidden" name="action" value="delete_shift">
+                                <input type="hidden" name="id" value="<?php echo $shift["id"]; ?>">
+                                <input type="hidden" name="selected_date" value="<?php echo htmlspecialchars($selectedDate); ?>">
+                                <button class="action-btn delete" type="submit" onclick="return confirm('Delete this shift?')">Delete</button>
+                            </form>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            <?php else: ?>
+                <div class="small">No shifts for this day yet.</div>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <div class="sidebar">
+        <details class="card">
+            <summary>Import Excel</summary>
+            <div class="inside">
+                <p class="small">Upload file and choose job + color.</p>
+
+                <form method="POST" id="excelImportForm" class="form">
+                    <input type="hidden" name="action" value="import_excel">
+                    <input type="hidden" name="excel_data" id="excel_data">
+
+                    <label>Workplace</label>
+                    <input type="text" name="import_workplace" value="Sabi Madla" placeholder="Workplace">
+
+                    <label>Color</label>
+                    <input type="color" name="import_color" value="#3b82f6">
+
+                    <label>Excel file</label>
+                    <input type="file" id="excelFile" accept=".xlsx,.xls" required>
+
+                    <button type="submit" class="import-btn">Import Excel</button>
+                </form>
+            </div>
+        </details>
+
+        <details class="card" open id="editShift">
+            <summary><?php echo !empty($editShift["id"]) ? "Edit shift" : "Add shift"; ?></summary>
+            <div class="inside">
+                <form method="POST" class="form">
+                    <input type="hidden" name="action" value="save_shift">
+                    <input type="hidden" name="id" value="<?php echo htmlspecialchars($editShift["id"]); ?>">
+
+                    <label>Date</label>
+                    <input type="date" name="work_date" value="<?php echo htmlspecialchars($editShift["work_date"]); ?>" required>
+
+                    <label>From</label>
+                    <input type="time" name="start_time" value="<?php echo htmlspecialchars(formatTimeForInput($editShift["start_time"])); ?>">
+
+                    <label>To</label>
+                    <input type="time" name="end_time" value="<?php echo htmlspecialchars(formatTimeForInput($editShift["end_time"])); ?>">
+
+                    <label>Workplace</label>
+                    <input type="text" name="workplace" value="<?php echo htmlspecialchars($editShift["workplace"]); ?>" required>
+
+                    <label>Color</label>
+                    <input type="color" name="color" value="<?php echo htmlspecialchars($editShift["color"]); ?>">
+
+                    <button type="submit"><?php echo !empty($editShift["id"]) ? "Save changes" : "Add shift"; ?></button>
+                </form>
+            </div>
+        </details>
+
+        <details class="card">
+            <summary>Hours by workplace</summary>
+            <div class="inside">
+                <div class="totals-list">
+                    <?php if (!empty($workplaceTotals)): ?>
+                        <?php foreach ($workplaceTotals as $place => $hours): ?>
+                            <div class="totals-item">
+                                <div class="totals-left">
+                                    <div class="dot" style="background: <?php echo htmlspecialchars($workplaceColors[$place] ?? '#3b82f6'); ?>;"></div>
+                                    <span><?php echo htmlspecialchars($place); ?></span>
+                                </div>
+                                <strong><?php echo number_format($hours, 2); ?> h</strong>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <div class="small">No saved shifts yet.</div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </details>
+    </div>
+</div>
+
+<script>
+document.getElementById('excelImportForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const fileInput = document.getElementById('excelFile');
+    const file = fileInput.files[0];
+
+    if (!file) {
+        alert('Choose an Excel file first.');
+        return;
+    }
+
+    const data = await file.arrayBuffer();
+    const workbook = XLSX.read(data, { type: 'array' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true });
+
+    const imported = [];
+
+    for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        const excelDate = row[0];
+        const start = row[1];
+        const end = row[2];
+
+        if (!excelDate || start == null || end == null) continue;
+
+        let jsDate;
+
+        if (typeof excelDate === 'number') {
+            const parsed = XLSX.SSF.parse_date_code(excelDate);
+            jsDate = new Date(parsed.y, parsed.m - 1, parsed.d);
+        } else {
+            jsDate = new Date(excelDate);
+        }
+
+        if (isNaN(jsDate.getTime())) continue;
+
+        const work_date =
+            jsDate.getFullYear() + '-' +
+            String(jsDate.getMonth() + 1).padStart(2, '0') + '-' +
+            String(jsDate.getDate()).padStart(2, '0');
+
+        imported.push({
+            work_date: work_date,
+            start_decimal: start,
+            end_decimal: end
+        });
+    }
+
+    document.getElementById('excel_data').value = JSON.stringify(imported);
+    e.target.submit();
+});
+</script>
+
+<script>
+if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+        navigator.serviceWorker.register("sw.js")
+            .then(function () {
+                console.log("Service Worker registered");
+            })
+            .catch(function (error) {
+                console.log("Service Worker registration failed:", error);
+            });
+    });
+}
+</script>
+</body>
+</html>
