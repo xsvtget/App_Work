@@ -245,6 +245,14 @@ if (!$editShift) {
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0f172a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="App Work">
+<link rel="apple-touch-icon" href="/logo.png">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#20bdb7">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -1127,19 +1135,21 @@ document.getElementById('excelImportForm').addEventListener('submit', async func
     e.target.submit();
 });
 </script>
-
 <script>
-if ("serviceWorker" in navigator) {
+  if ("serviceWorker" in navigator) {
     window.addEventListener("load", function () {
-        navigator.serviceWorker.register("sw.js")
-            .then(function () {
-                console.log("Service Worker registered");
-            })
-            .catch(function (error) {
-                console.log("Service Worker registration failed:", error);
-            });
+      navigator.serviceWorker.register("/sw.js")
+        .then(function (registration) {
+          console.log("Service Worker registered:", registration.scope);
+        })
+        .catch(function (error) {
+          console.log("Service Worker registration failed:", error);
+        });
     });
-}
+  }
 </script>
+
 </body>
+
+
 </html>
