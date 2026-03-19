@@ -3,6 +3,18 @@ ini_set('display_errors', 1);
 error_reporting(E_ALL);
 session_start();
 
+$host = "db";
+$dbname = getenv("MARIADB_DATABASE");
+$username = getenv("MARIADB_USER");
+$password = getenv("MARIADB_APP_PASSWORD");
+
+$conn = new mysqli($host, $username, $password, $dbname);
+
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+/* REMEMBER ME: якщо сесії нема, але є cookie */
 if (!isset($_SESSION["user_id"]) && isset($_COOKIE["remember_token"])) {
     $cookieToken = $_COOKIE["remember_token"];
 
@@ -20,24 +32,18 @@ if (!isset($_SESSION["user_id"]) && isset($_COOKIE["remember_token"])) {
     $stmtAuto->close();
 }
 
+/* ТІЛЬКИ ПІСЛЯ ЦЬОГО перевірка входу */
 if (!isset($_SESSION["user_id"])) {
     header("Location: login.php");
     exit();
 }
 
+$user_id = (int)$_SESSION["user_id"];
+$user_name = $_SESSION["username"] ?? "User";
+
 if (!isset($_SESSION["user_id"])) {
     header("Location: login.php");
     exit();
-}
-
-$host = "db";
-$dbname = getenv("MARIADB_DATABASE");
-$username = getenv("MARIADB_USER");
-$password = getenv("MARIADB_APP_PASSWORD");
-
-$conn = new mysqli($host, $username, $password, $dbname);
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
 }
 
 $user_id = (int)$_SESSION["user_id"];
