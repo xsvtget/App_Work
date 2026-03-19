@@ -19,7 +19,6 @@ if ($conn->connect_error) {
 }
 
 $user_id = (int)$_SESSION["user_id"];
-
 $user_name = $_SESSION["username"] ?? "User";
 $profile_image = null;
 
@@ -247,23 +246,17 @@ if (!$editShift) {
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#0f172a">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="App Work">
-<link rel="apple-touch-icon" href="/logo.png">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#20bdb7">
-<link rel="apple-touch-icon" href="icon-192.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Planner">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Work Calendar</title>
+    <meta name="format-detection" content="telephone=no, date=no, email=no, address=no">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="App Work">
+    <link rel="apple-touch-icon" href="/logo.png">
     <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
     <style>
         * { box-sizing: border-box; }
@@ -273,6 +266,145 @@ if (!$editShift) {
             font-family: Arial, sans-serif;
             background: #f3f6fb;
             color: #1f2937;
+        }
+
+        a[x-apple-data-detectors],
+        a[x-apple-data-detectors-type="date"],
+        a[x-apple-data-detectors-type="address"],
+        a[x-apple-data-detectors-type="calendar-event"] {
+            color: inherit !important;
+            text-decoration: none !important;
+            font-size: inherit !important;
+            font-family: inherit !important;
+            font-weight: inherit !important;
+            line-height: inherit !important;
+        }
+
+        .top-bar {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 16px 18px;
+            margin-bottom: 14px;
+            box-sizing: border-box;
+            position: relative;
+        }
+
+        .user-profile-box {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .profile-avatar {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #ffffff;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.10);
+            background: #e9eef3;
+        }
+
+        .fallback-avatar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            font-weight: 800;
+            color: #0d8a8a;
+            background: #dff6f6;
+        }
+
+        .user-profile-text {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .hello-user {
+            font-size: 16px;
+            font-weight: 700;
+            color: #12304a;
+        }
+
+        .top-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-left: auto;
+        }
+
+        .profile-btn,
+        .logout-btn,
+        .menu-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 14px;
+            padding: 10px 16px;
+            border-radius: 14px;
+            transition: 0.2s ease;
+            border: none;
+        }
+
+        .profile-btn {
+            background: #18b7b0;
+            box-shadow: 0 6px 14px rgba(24, 183, 176, 0.22);
+        }
+
+        .profile-btn:hover {
+            background: #14a39d;
+            transform: translateY(-1px);
+        }
+
+        .logout-btn {
+            background: #e53935;
+            box-shadow: 0 6px 14px rgba(229, 57, 53, 0.22);
+        }
+
+        .logout-btn:hover {
+            background: #d32f2f;
+            transform: translateY(-1px);
+        }
+
+        .menu-toggle {
+            display: none;
+            width: 42px;
+            height: 42px;
+            border: none;
+            border-radius: 12px;
+            background: #ffffff;
+            color: #12304a;
+            font-size: 20px;
+            font-weight: 700;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            cursor: pointer;
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 1002;
+        }
+
+        .mobile-only {
+            display: none;
+        }
+
+        .desktop-only {
+            display: block;
+        }
+
+        .menu-overlay {
+            display: none;
+        }
+
+        .menu-modal {
+            display: none;
         }
 
         .app {
@@ -610,10 +742,101 @@ if (!$editShift) {
             }
         }
 
-        @media (max-width: 700px) {
+        @media (max-width: 768px) {
+            .top-bar {
+                padding: 12px 14px;
+                margin-bottom: 0px;
+                min-height: 60px;
+                padding-right: 68px;
+            }
+
+            .profile-avatar {
+                width: 42px;
+                height: 42px;
+            }
+
+            .fallback-avatar {
+                font-size: 18px;
+            }
+
+            .hello-user {
+                font-size: 14px;
+            }
+
+            .desktop-actions {
+                display: none;
+            }
+
+            .mobile-only {
+                display: block;
+            }
+
+            .menu-toggle {
+                width: 38px;
+                height: 38px;
+                border-radius: 10px;
+                font-size: 18px;
+                right: 14px;
+            }
+
+            .menu-overlay {
+                position: fixed;
+                inset: 0;
+                background: rgba(15, 23, 42, 0.45);
+                z-index: 1000;
+                display: none;
+            }
+
+            .menu-overlay.open {
+                display: block;
+            }
+
+            .menu-modal {
+                position: fixed;
+                top: 70px;
+                right: 16px;
+                width: 150px;
+                background: #ffffff;
+                border-radius: 22px;
+                box-shadow: 0 18px 40px rgba(0,0,0,0.18);
+                padding: 10px;
+                z-index: 1001;
+                display: none;
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .menu-modal.open {
+                display: flex;
+            }
+
+            .menu-link {
+                width: 100%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                text-decoration: none;
+                font-weight: 700;
+                font-size: 12px;
+                padding: 14px 16px;
+                border-radius: 14px;
+                color: #fff;
+            }
+
+            .menu-link.profile-link {
+                background: #18b7b0;
+                box-shadow: 0 6px 14px rgba(24, 183, 176, 0.22);
+            }
+
+            .menu-link.logout-link {
+                background: #e53935;
+                box-shadow: 0 6px 14px rgba(229, 57, 53, 0.22);
+            }
+
             .app {
                 padding: 10px;
                 gap: 12px;
+                grid-template-columns: 1fr;
             }
 
             .month-nav h1 {
@@ -639,21 +862,21 @@ if (!$editShift) {
             }
 
             .day {
-                height: 78px;
-                min-height: 78px;
-                max-height: 78px;
-                padding: 6px;
+                height: 58px;
+                min-height: 58px;
+                max-height: 58px;
+                padding: 5px;
                 border-radius: 12px;
             }
 
             .day-number {
-                font-size: 13px;
-                margin-bottom: 4px;
+                font-size: 12px;
+                margin-bottom: 2px;
             }
 
             .mini-shift {
-                height: 6px;
-                margin-top: 3px;
+                height: 5px;
+                margin-top: 2px;
             }
 
             .mini-more {
@@ -691,201 +914,6 @@ if (!$editShift) {
                 font-size: 13px;
             }
         }
-
-        .top-bar {
-    width: 100%;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 14px 18px;
-    margin-bottom: 14px;
-    box-sizing: border-box;
-}
-
-.top-bar-left {
-    display: flex;
-    align-items: center;
-}
-
-.top-bar-right {
-    display: flex;
-    align-items: center;
-}
-
-.hello-user {
-    font-size: 35px;
-    font-weight: 600;
-    color: #12304a;
-}
-
-.logout-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: #e53935;
-    color: #fff;
-    text-decoration: none;
-    font-weight: 700;
-    font-size: 14px;
-    padding: 10px 15px;
-    border-radius: 14px;
-    box-shadow: 0 6px 14px rgba(229, 57, 53, 0.22);
-    transition: 0.2s ease;
-}
-
-.logout-btn:hover {
-    background: #d32f2f;
-    transform: translateY(-1px);
-}
-
-.logout-btn:active {
-    transform: translateY(0);
-}
-
-@media (max-width: 768px) {
-    .top-bar {
-        padding: 10px 12px;
-        margin-bottom: 10px;
-    }
-
-    .hello-user {
-        font-size: 30px;
-    }
-
-    .logout-btn {
-        font-size: 13px;
-        padding: 8px 12px;
-        border-radius: 12px;
-    }
-}
-
-.top-bar {
-    width: 100%;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 12px;
-    padding: 14px 18px;
-    margin-bottom: 14px;
-    box-sizing: border-box;
-    flex-wrap: wrap;
-}
-
-.user-profile-box {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    min-width: 0;
-}
-
-.profile-avatar {
-    width: 52px;
-    height: 52px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 3px solid #ffffff;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.10);
-    background: #e9eef3;
-}
-
-.fallback-avatar {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 22px;
-    font-weight: 800;
-    color: #0d8a8a;
-    background: #dff6f6;
-}
-
-.user-profile-text {
-    display: flex;
-    flex-direction: column;
-}
-
-.hello-user {
-    font-size: 16px;
-    font-weight: 700;
-    color: #12304a;
-}
-
-.top-actions {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.profile-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: #18b7b0;
-    color: #fff;
-    text-decoration: none;
-    font-weight: 700;
-    font-size: 14px;
-    padding: 10px 16px;
-    border-radius: 14px;
-    box-shadow: 0 6px 14px rgba(24, 183, 176, 0.22);
-    transition: 0.2s ease;
-}
-
-.profile-btn:hover {
-    background: #14a39d;
-    transform: translateY(-1px);
-}
-
-.logout-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: #e53935;
-    color: #fff;
-    text-decoration: none;
-    font-weight: 700;
-    font-size: 14px;
-    padding: 10px 16px;
-    border-radius: 14px;
-    box-shadow: 0 6px 14px rgba(229, 57, 53, 0.22);
-    transition: 0.2s ease;
-}
-
-.logout-btn:hover {
-    background: #d32f2f;
-    transform: translateY(-1px);
-}
-
-@media (max-width: 768px) {
-    .top-bar {
-        padding: 10px 12px;
-        gap: 10px;
-    }
-
-    .profile-avatar {
-        width: 42px;
-        height: 42px;
-    }
-
-    .fallback-avatar {
-        font-size: 18px;
-    }
-
-    .hello-user {
-        font-size: 14px;
-    }
-
-    .top-actions {
-        width: 100%;
-        justify-content: flex-end;
-    }
-
-    .profile-btn,
-    .logout-btn {
-        font-size: 13px;
-        padding: 8px 12px;
-        border-radius: 12px;
-    }
-}
     </style>
 </head>
 <body>
@@ -905,10 +933,19 @@ if (!$editShift) {
         </div>
     </div>
 
-    <div class="top-actions">
+    <div class="top-actions desktop-actions">
         <a href="edit_profile.php" class="profile-btn">Profile</a>
         <a href="logout.php" class="logout-btn">Logout</a>
     </div>
+
+    <button class="menu-toggle mobile-only" id="menuToggle" type="button">☰</button>
+</div>
+
+<div class="menu-overlay mobile-only" id="menuOverlay"></div>
+
+<div class="menu-modal mobile-only" id="menuModal">
+    <a href="edit_profile.php" class="menu-link profile-link">Profile</a>
+    <a href="logout.php" class="menu-link logout-link">Logout</a>
 </div>
 
 <div class="app">
@@ -1009,7 +1046,7 @@ if (!$editShift) {
         </div>
     </div>
 
-    <div class="sidebar">
+    <div class="sidebar desktop-only">
         <details class="card">
             <summary>Import Excel</summary>
             <div class="inside">
@@ -1084,74 +1121,83 @@ if (!$editShift) {
 </div>
 
 <script>
-document.getElementById('excelImportForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
+const menuToggle = document.getElementById('menuToggle');
+const menuModal = document.getElementById('menuModal');
+const menuOverlay = document.getElementById('menuOverlay');
 
-    const fileInput = document.getElementById('excelFile');
-    const file = fileInput.files[0];
+if (menuToggle && menuModal && menuOverlay) {
+    menuModal.classList.remove('open');
+    menuOverlay.classList.remove('open');
 
-    if (!file) {
-        alert('Choose an Excel file first.');
-        return;
-    }
+    menuToggle.addEventListener('click', function (e) {
+        e.stopPropagation();
+        menuModal.classList.toggle('open');
+        menuOverlay.classList.toggle('open');
+    });
 
-    const data = await file.arrayBuffer();
-    const workbook = XLSX.read(data, { type: 'array' });
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true });
+    menuOverlay.addEventListener('click', function () {
+        menuModal.classList.remove('open');
+        menuOverlay.classList.remove('open');
+    });
+}
 
-    const imported = [];
+const excelImportForm = document.getElementById('excelImportForm');
 
-    for (let i = 1; i < rows.length; i++) {
-        const row = rows[i];
-        const excelDate = row[0];
-        const start = row[1];
-        const end = row[2];
+if (excelImportForm) {
+    excelImportForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
 
-        if (!excelDate || start == null || end == null) continue;
+        const fileInput = document.getElementById('excelFile');
+        const file = fileInput.files[0];
 
-        let jsDate;
-
-        if (typeof excelDate === 'number') {
-            const parsed = XLSX.SSF.parse_date_code(excelDate);
-            jsDate = new Date(parsed.y, parsed.m - 1, parsed.d);
-        } else {
-            jsDate = new Date(excelDate);
+        if (!file) {
+            alert('Choose an Excel file first.');
+            return;
         }
 
-        if (isNaN(jsDate.getTime())) continue;
+        const data = await file.arrayBuffer();
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true });
 
-        const work_date =
-            jsDate.getFullYear() + '-' +
-            String(jsDate.getMonth() + 1).padStart(2, '0') + '-' +
-            String(jsDate.getDate()).padStart(2, '0');
+        const imported = [];
 
-        imported.push({
-            work_date: work_date,
-            start_decimal: start,
-            end_decimal: end
-        });
-    }
+        for (let i = 1; i < rows.length; i++) {
+            const row = rows[i];
+            const excelDate = row[0];
+            const start = row[1];
+            const end = row[2];
 
-    document.getElementById('excel_data').value = JSON.stringify(imported);
-    e.target.submit();
-});
-</script>
-<!--<script>
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", function () {
-      navigator.serviceWorker.register("/sw.js")
-        .then(function (registration) {
-          console.log("Service Worker registered:", registration.scope);
-        })
-        .catch(function (error) {
-          console.log("Service Worker registration failed:", error);
-        });
+            if (!excelDate || start == null || end == null) continue;
+
+            let jsDate;
+
+            if (typeof excelDate === 'number') {
+                const parsed = XLSX.SSF.parse_date_code(excelDate);
+                jsDate = new Date(parsed.y, parsed.m - 1, parsed.d);
+            } else {
+                jsDate = new Date(excelDate);
+            }
+
+            if (isNaN(jsDate.getTime())) continue;
+
+            const work_date =
+                jsDate.getFullYear() + '-' +
+                String(jsDate.getMonth() + 1).padStart(2, '0') + '-' +
+                String(jsDate.getDate()).padStart(2, '0');
+
+            imported.push({
+                work_date: work_date,
+                start_decimal: start,
+                end_decimal: end
+            });
+        }
+
+        document.getElementById('excel_data').value = JSON.stringify(imported);
+        e.target.submit();
     });
-  }
-</script> -->
+}
+</script>
 
 </body>
-
-
 </html>
