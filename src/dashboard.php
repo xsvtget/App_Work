@@ -3,6 +3,28 @@ ini_set('display_errors', 1);
 error_reporting(E_ALL);
 session_start();
 
+if (!isset($_SESSION["user_id"]) && isset($_COOKIE["remember_token"])) {
+    $cookieToken = $_COOKIE["remember_token"];
+
+    $stmtAuto = $conn->prepare("SELECT id, username FROM users WHERE remember_token = ?");
+    $stmtAuto->bind_param("s", $cookieToken);
+    $stmtAuto->execute();
+    $resultAuto = $stmtAuto->get_result();
+
+    if ($resultAuto->num_rows === 1) {
+        $userAuto = $resultAuto->fetch_assoc();
+        $_SESSION["user_id"] = $userAuto["id"];
+        $_SESSION["username"] = $userAuto["username"];
+    }
+
+    $stmtAuto->close();
+}
+
+if (!isset($_SESSION["user_id"])) {
+    header("Location: login.php");
+    exit();
+}
+
 if (!isset($_SESSION["user_id"])) {
     header("Location: login.php");
     exit();

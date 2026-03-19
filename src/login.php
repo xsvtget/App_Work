@@ -2,6 +2,25 @@
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 session_start();
+if (!isset($_SESSION["user_id"]) && isset($_COOKIE["remember_token"])) {
+    $cookieToken = $_COOKIE["remember_token"];
+
+    $stmtAuto = $conn->prepare("SELECT id, username FROM users WHERE remember_token = ?");
+    $stmtAuto->bind_param("s", $cookieToken);
+    $stmtAuto->execute();
+    $resultAuto = $stmtAuto->get_result();
+
+    if ($resultAuto->num_rows === 1) {
+        $userAuto = $resultAuto->fetch_assoc();
+        $_SESSION["user_id"] = $userAuto["id"];
+        $_SESSION["username"] = $userAuto["username"];
+
+        header("Location: dashboard.php");
+        exit();
+    }
+
+    $stmtAuto->close();
+}
 
 if (!isset($_SESSION["from_welcome"])) {
     header("Location: welcome.php");
@@ -37,6 +56,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $_SESSION["user_id"] = $row["id"];
             $_SESSION["username"] = $row["username"];
             unset($_SESSION["from_welcome"]);
+
+            $rememberToken = bin2hex(random_bytes(32));
+
+            $stmtRemember = $conn->prepare("UPDATE users SET remember_token = ? WHERE id = ?");
+            $stmtRemember->bind_param("si", $rememberToken, $row["id"]);
+            $stmtRemember->execute();
+            $stmtRemember->close();
+
+            setcookie(
+                "remember_token",
+                $rememberToken,
+                time() + (86400 * 30),
+                "/",
+                "",
+                false,
+                true
+            );
 
             header("Location: dashboard.php");
             exit();
