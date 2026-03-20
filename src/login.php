@@ -2,6 +2,18 @@
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 session_start();
+
+$host = "db";
+$dbname = getenv("MARIADB_DATABASE");
+$username = getenv("MARIADB_USER");
+$password = getenv("MARIADB_APP_PASSWORD");
+
+$conn = new mysqli($host, $username, $password, $dbname);
+
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
 if (!isset($_SESSION["user_id"]) && isset($_COOKIE["remember_token"])) {
     $cookieToken = $_COOKIE["remember_token"];
 
@@ -27,18 +39,8 @@ if (!isset($_SESSION["from_welcome"])) {
     exit();
 }
 
-$host = "db";
-$dbname = getenv("MARIADB_DATABASE");
-$username = getenv("MARIADB_USER");
-$password = getenv("MARIADB_APP_PASSWORD");
-
-$conn = new mysqli($host, $username, $password, $dbname);
-
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
-}
-
 $message = "";
+
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $user = trim($_POST["username"]);
