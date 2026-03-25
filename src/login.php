@@ -41,7 +41,6 @@ if (!isset($_SESSION["from_welcome"])) {
 
 $message = "";
 
-
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $user = trim($_POST["username"]);
     $pass = trim($_POST["password"]);
