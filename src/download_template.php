@@ -17,7 +17,7 @@ if ($year < 2000 || $year > 2100) {
     $year = (int)date("Y");
 }
 
-$daysInMonth = cal_days_in_month(CAL_GREGORIAN, $month, $year);
+$daysInMonth = date("t", mktime(0, 0, 0, $month, 1, $year));
 
 $filename = "template_" . $year . "_" . str_pad($month, 2, "0", STR_PAD_LEFT) . ".csv";
 
