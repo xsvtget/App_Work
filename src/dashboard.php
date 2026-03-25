@@ -942,6 +942,28 @@ if (!$editShift) {
                 font-size: 13px;
             }
         }
+
+        .template-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            text-decoration: none;
+            border: none;
+            border-radius: 12px;
+            padding: 12px;
+            font-size: 14px;
+            font-weight: 700;
+            background: #2563eb;
+            color: #ffffff;
+            box-shadow: 0 6px 14px rgba(37, 99, 235, 0.20);
+            transition: 0.2s ease;
+        }
+
+        .template-btn:hover {
+            background: #1d4ed8;
+            transform: translateY(-1px);
+        }
     </style>
 </head>
 <body>
@@ -1080,7 +1102,11 @@ if (!$editShift) {
             <div class="inside">
                 <p class="small">Upload file and choose job + color.</p>
 
-                <form method="POST" id="excelImportForm" class="form">
+                <a href="import_help.php" class="template-btn">Template / Example</a>
+                <a href="download_template.php?month=<?php echo $month; ?>&year=<?php echo $year; ?>" class="template-btn" style="margin-top:10px;">
+                    Download template
+                </a>
+                <form method="POST" id="excelImportForm" class="form" style="margin-top: 12px;">
                     <input type="hidden" name="action" value="import_excel">
                     <input type="hidden" name="excel_data" id="excel_data">
 
