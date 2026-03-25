@@ -66,14 +66,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $stmtRemember->close();
 
             setcookie(
-                "remember_token",
-                $rememberToken,
-                time() + (86400 * 30),
-                "/",
-                "",
-                false,
-                true
-            );
+            "remember_token",
+            $rememberToken,
+            [
+                "expires" => time() + (86400 * 30),
+                "path" => "/",
+                "secure" => true,
+                "httponly" => true,
+                "samesite" => "Lax"
+            ]
+        );
 
             header("Location: dashboard.php");
             exit();

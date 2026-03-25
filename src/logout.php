@@ -16,7 +16,17 @@ if (isset($_SESSION["user_id"])) {
     $stmt->close();
 }
 
-setcookie("remember_token", "", time() - 3600, "/");
+setcookie(
+    "remember_token",
+    "",
+    [
+        "expires" => time() - 3600,
+        "path" => "/",
+        "secure" => true,
+        "httponly" => true,
+        "samesite" => "Lax"
+    ]
+);
 
 session_unset();
 session_destroy();

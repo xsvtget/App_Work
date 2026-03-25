@@ -1,5 +1,37 @@
 <?php
 session_start();
+
+$host = "db";
+$dbname = getenv("MARIADB_DATABASE");
+$username = getenv("MARIADB_USER");
+$password = getenv("MARIADB_APP_PASSWORD");
+
+$conn = new mysqli($host, $username, $password, $dbname);
+
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+if (!isset($_SESSION["user_id"]) && isset($_COOKIE["remember_token"])) {
+    $cookieToken = $_COOKIE["remember_token"];
+
+    $stmtAuto = $conn->prepare("SELECT id, username FROM users WHERE remember_token = ?");
+    $stmtAuto->bind_param("s", $cookieToken);
+    $stmtAuto->execute();
+    $resultAuto = $stmtAuto->get_result();
+
+    if ($resultAuto->num_rows === 1) {
+        $userAuto = $resultAuto->fetch_assoc();
+        $_SESSION["user_id"] = $userAuto["id"];
+        $_SESSION["username"] = $userAuto["username"];
+
+        header("Location: dashboard.php");
+        exit();
+    }
+
+    $stmtAuto->close();
+}
+
 $_SESSION["from_welcome"] = true;
 ?>
 
