@@ -90,6 +90,21 @@ function calculateHours($start, $end) {
 }
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
+    if (isset($_POST["action"]) && $_POST["action"] === "delete_day_shifts") {
+        $work_date = $_POST["work_date"] ?? '';
+        $month_redirect = (int)($_POST["month"] ?? date("n"));
+        $year_redirect = (int)($_POST["year"] ?? date("Y"));
+
+        if (!empty($work_date)) {
+            $stmt = $conn->prepare("DELETE FROM work_shifts WHERE user_id = ? AND work_date = ?");
+            $stmt->bind_param("is", $user_id, $work_date);
+            $stmt->execute();
+            $stmt->close();
+        }
+
+        header("Location: dashboard.php?month=" . $month_redirect . "&year=" . $year_redirect . "&selected_date=" . urlencode($work_date));
+        exit();
+    }
     if (isset($_POST["action"]) && $_POST["action"] === "save_shift") {
         $id = !empty($_POST["id"]) ? (int)$_POST["id"] : 0;
         $work_date = $_POST["work_date"] ?? '';
@@ -964,6 +979,34 @@ if (!$editShift) {
             background: #1d4ed8;
             transform: translateY(-1px);
         }
+
+        .delete-big-btn {
+            width: 100%;
+            border: none;
+            border-radius: 12px;
+            padding: 12px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            background: #f59e0b;
+            color: #ffffff;
+            box-shadow: 0 6px 14px rgba(245, 158, 11, 0.22);
+            transition: 0.2s ease;
+        }
+
+        .delete-big-btn:hover {
+            transform: translateY(-1px);
+            background: #d97706;
+        }
+
+        .delete-big-btn.danger {
+            background: #ef4444;
+            box-shadow: 0 6px 14px rgba(239, 68, 68, 0.22);
+        }
+
+        .delete-big-btn.danger:hover {
+            background: #dc2626;
+        }
     </style>
 </head>
 <body>
@@ -1171,6 +1214,25 @@ if (!$editShift) {
                 </div>
             </div>
         </details>
+        <details class="card">
+            <summary>Delete shifts</summary>
+            <div class="inside">
+                <form method="POST" onsubmit="return confirm('Delete all shifts for the selected day?');" class="form">
+                    <input type="hidden" name="action" value="delete_day_shifts">
+                    <input type="hidden" name="work_date" value="<?php echo htmlspecialchars($selectedDate); ?>">
+                    <input type="hidden" name="month" value="<?php echo $month; ?>">
+                    <input type="hidden" name="year" value="<?php echo $year; ?>">
+                    <button type="submit" class="delete-big-btn">Delete selected day</button>
+                </form>
+
+                <form method="POST" onsubmit="return confirm('Delete ALL shifts for this month? This cannot be undone.');" class="form" style="margin-top: 12px;">
+                    <input type="hidden" name="action" value="delete_month_shifts">
+                    <input type="hidden" name="month" value="<?php echo $month; ?>">
+                    <input type="hidden" name="year" value="<?php echo $year; ?>">
+                    <button type="submit" class="delete-big-btn danger">Delete whole month</button>
+                </form>
+            </div>
+    </details>
     </div>
 </div>
 
