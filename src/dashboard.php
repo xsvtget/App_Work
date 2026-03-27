@@ -1027,6 +1027,7 @@ if (!$editShift) {
     </div>
 
     <div class="top-actions desktop-actions">
+        <a href="salary_settings.php" class="profile-btn">Salary settings</a>
         <a href="edit_profile.php" class="profile-btn">Profile</a>
         <a href="logout.php" class="logout-btn">Logout</a>
     </div>
@@ -1037,6 +1038,7 @@ if (!$editShift) {
 <div class="menu-overlay mobile-only" id="menuOverlay"></div>
 
 <div class="menu-modal mobile-only" id="menuModal">
+    <a href="salary_settings.php" class="profile-btn">Salary settings</a>
     <a href="edit_profile.php" class="menu-link profile-link">Profile</a>
     <a href="logout.php" class="menu-link logout-link">Logout</a>
 </div>
