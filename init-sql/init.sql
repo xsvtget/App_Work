@@ -11,9 +11,26 @@ CREATE TABLE IF NOT EXISTS users (
     remember_token VARCHAR(255) DEFAULT NULL
 );
 
+CREATE TABLE IF NOT EXISTS workplaces (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    name VARCHAR(150) NOT NULL,
+    color VARCHAR(20) DEFAULT '#3b82f6',
+    hourly_rate DECIMAL(10,2) DEFAULT 0.00,
+    tax_percent DECIMAL(5,2) DEFAULT 0.00,
+    overtime_percent DECIMAL(5,2) DEFAULT 40.00,
+    evening_addition DECIMAL(10,2) DEFAULT 0.00,
+    weekend_addition DECIMAL(10,2) DEFAULT 0.00,
+    holiday_percent DECIMAL(5,2) DEFAULT 100.00,
+    evening_start TIME DEFAULT '18:00:00',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS work_shifts (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
+    workplace_id INT NULL,
     work_date DATE NOT NULL,
     start_time TIME NULL,
     end_time TIME NULL,
@@ -21,5 +38,12 @@ CREATE TABLE IF NOT EXISTS work_shifts (
     color VARCHAR(20) DEFAULT '#3b82f6',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (workplace_id) REFERENCES workplaces(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS holidays (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    holiday_date DATE NOT NULL UNIQUE,
+    title VARCHAR(150) NOT NULL
 );
