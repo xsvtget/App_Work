@@ -87,9 +87,10 @@ if ($currentWorkplace) {
         SELECT ws.*
         FROM work_shifts ws
         WHERE ws.user_id = ?
-          AND ws.workplace_id = ?
-          AND MONTH(ws.work_date) = ?
-          AND YEAR(ws.work_date) = ?
+        AND ws.entry_type = 'shift'
+        AND ws.workplace_id = ?
+        AND MONTH(ws.work_date) = ?
+        AND YEAR(ws.work_date) = ?
         ORDER BY ws.work_date, ws.start_time
     ");
     $stmt->bind_param("iiii", $user_id, $workplace_id, $month, $year);
@@ -226,6 +227,7 @@ $monthNames = [
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 14px;
+            margin-top: 16px;
         }
         .summary-item {
             background: #f8fafc;
@@ -242,16 +244,24 @@ $monthNames = [
             font-weight: 700;
             color: #0f274f;
         }
+        .table-wrap {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin-top: 14px;
+            border-radius: 16px;
+        }
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 14px;
+            min-width: 720px;
         }
         th, td {
             padding: 12px;
             border-bottom: 1px solid #e5e7eb;
             text-align: left;
             font-size: 14px;
+            white-space: nowrap;
         }
         th {
             color: #0f274f;
@@ -267,6 +277,40 @@ $monthNames = [
             }
             .summary-grid {
                 grid-template-columns: 1fr;
+            }
+        }
+        @media (max-width: 700px) {
+            body {
+                padding: 12px;
+            }
+
+            .card {
+                padding: 16px;
+                border-radius: 18px;
+            }
+
+            h1 {
+                font-size: 28px;
+            }
+
+            h2 {
+                font-size: 24px;
+                line-height: 1.25;
+            }
+
+            .summary-item .value {
+                font-size: 22px;
+            }
+
+            th,
+            td {
+                padding: 10px;
+                font-size: 13px;
+            }
+
+            .filters select,
+            .filters button {
+                font-size: 16px;
             }
         }
     </style>
@@ -334,16 +378,17 @@ $monthNames = [
                 </div>
             </div>
 
-            <table>
-                <tr>
-                    <th>Date</th>
-                    <th>Hours</th>
-                    <th>Base</th>
-                    <th>Evening</th>
-                    <th>Weekend</th>
-                    <th>Holiday</th>
-                    <th>Gross line</th>
-                </tr>
+            <div class="table-wrap">
+                <table>
+                    <tr>
+                        <th>Date</th>
+                        <th>Hours</th>
+                        <th>Base</th>
+                        <th>Evening</th>
+                        <th>Weekend</th>
+                        <th>Holiday</th>
+                        <th>Gross line</th>
+                    </tr>
                 <?php if (!empty($shifts)): ?>
                     <?php foreach ($shifts as $shift): ?>
                         <tr>
@@ -361,7 +406,7 @@ $monthNames = [
                         <td colspan="7">No shifts found for this workplace and month.</td>
                     </tr>
                 <?php endif; ?>
-            </table>
+                </div>
 
             <div style="margin-top:16px;" class="small">
                 Base pay: <?php echo number_format($summary["base_pay"], 2); ?><br>

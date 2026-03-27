@@ -118,28 +118,64 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     }
     if (isset($_POST["action"]) && $_POST["action"] === "save_shift") {
         $id = !empty($_POST["id"]) ? (int)$_POST["id"] : 0;
+        $entry_type = $_POST["entry_type"] ?? 'shift';
         $workplace_id = !empty($_POST["workplace_id"]) ? (int)$_POST["workplace_id"] : null;
         $work_date = $_POST["work_date"] ?? '';
         $start_time = !empty($_POST["start_time"]) ? $_POST["start_time"] . ':00' : null;
         $end_time = !empty($_POST["end_time"]) ? $_POST["end_time"] . ':00' : null;
         $workplace = trim($_POST["workplace"] ?? 'Sabi Madla');
         $color = trim($_POST["color"] ?? '#3b82f6');
+        $note = trim($_POST["note"] ?? '');
+
+        if ($entry_type === 'shift' && empty($workplace_id)) {
+            header("Location: dashboard.php?month=" . $month . "&year=" . $year . "&selected_date=" . urlencode($work_date));
+            exit();
+        }
+
+        if ($entry_type === 'plan') {
+            $workplace_id = null;
+            $workplace = $note !== '' ? $note : 'Plan';
+        }
 
         if ($id > 0) {
            $stmt = $conn->prepare("
                 UPDATE work_shifts
-                SET workplace_id = ?, work_date = ?, start_time = ?, end_time = ?, workplace = ?, color = ?
+                SET entry_type = ?, workplace_id = ?, work_date = ?, start_time = ?, end_time = ?, workplace = ?, color = ?, note = ?
                 WHERE id = ? AND user_id = ?
             ");
-            $stmt->bind_param("isssssii", $workplace_id, $work_date, $start_time, $end_time, $workplace, $color, $id, $user_id);
+            $stmt->bind_param(
+                "sissssssii",
+                $entry_type,
+                $workplace_id,
+                $work_date,
+                $start_time,
+                $end_time,
+                $workplace,
+                $color,
+                $note,
+                $id,
+                $user_id
+            );
             $stmt->execute();
             $stmt->close();
-        } else {
+        } 
+        else {
             $stmt = $conn->prepare("
-                INSERT INTO work_shifts (user_id, workplace_id, work_date, start_time, end_time, workplace, color)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO work_shifts (user_id, entry_type, workplace_id, work_date, start_time, end_time, workplace, color, note)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
-            $stmt->bind_param("iisssss", $user_id, $workplace_id, $work_date, $start_time, $end_time, $workplace, $color);
+            $stmt->bind_param(
+                "isissssss",
+                $user_id,
+                $entry_type,
+                $workplace_id,
+                $work_date,
+                $start_time,
+                $end_time,
+                $workplace,
+                $color,
+                $note
+            );
             $stmt->execute();
             $stmt->close();
         }
@@ -221,7 +257,7 @@ if ($nextMonth > 12) { $nextMonth = 1; $nextYear++; }
 $selectedDate = $_GET["selected_date"] ?? date("Y-m-d");
 
 $stmt = $conn->prepare("
-    SELECT id, workplace_id, work_date, start_time, end_time, workplace, color
+    SELECT id, entry_type, workplace_id, work_date, start_time, end_time, workplace, color, note
     FROM work_shifts
     WHERE user_id = ? AND MONTH(work_date) = ? AND YEAR(work_date) = ?
     ORDER BY work_date, start_time
@@ -253,7 +289,7 @@ while ($row = $result->fetch_assoc()) {
 $stmt->close();
 
 $stmt = $conn->prepare("
-    SELECT id, workplace_id, work_date, start_time, end_time, workplace, color
+    SELECT id, entry_type, workplace_id, work_date, start_time, end_time, workplace, color, note
     FROM work_shifts
     WHERE user_id = ? AND work_date = ?
     ORDER BY start_time
@@ -275,7 +311,7 @@ $editShift = null;
 if (isset($_GET["edit_id"])) {
     $edit_id = (int)$_GET["edit_id"];
     $stmt = $conn->prepare("
-        SELECT id, workplace_id, work_date, start_time, end_time, workplace, color
+        SELECT id, entry_type, workplace_id, work_date, start_time, end_time, workplace, color, note
         FROM work_shifts
         WHERE id = ? AND user_id = ?
         LIMIT 1
@@ -290,12 +326,14 @@ if (isset($_GET["edit_id"])) {
 if (!$editShift) {
     $editShift = [
         "id" => "",
+        "entry_type" => "shift",
         "workplace_id" => "",
         "work_date" => $selectedDate,
         "start_time" => "",
         "end_time" => "",
         "workplace" => "",
-        "color" => "#3b82f6"
+        "color" => "#3b82f6",
+        "note" => ""
     ];
 }
 ?>
@@ -1021,6 +1059,13 @@ if (!$editShift) {
         .delete-big-btn.danger:hover {
             background: #dc2626;
         }
+
+        #planFields,
+        #workShiftFields {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
     </style>
 </head>
 <body>
@@ -1212,23 +1257,36 @@ if (!$editShift) {
 
                     <label>To</label>
                     <input type="time" name="end_time" value="<?php echo htmlspecialchars(formatTimeForInput($editShift["end_time"])); ?>">
-                    <label>Choose workplace</label>
-                    <select name="workplace_id" id="workplaceSelect" onchange="syncWorkplaceData()">
-                        <option value="">Manual / no linked workplace</option>
-                        <?php foreach ($workplacesForSelect as $wp): ?>
-                            <option
-                                value="<?php echo $wp["id"]; ?>"
-                                data-name="<?php echo htmlspecialchars($wp["name"]); ?>"
-                                data-color="<?php echo htmlspecialchars($wp["color"]); ?>"
-                                <?php echo ((string)($editShift["workplace_id"] ?? "") === (string)$wp["id"]) ? 'selected' : ''; ?>
-                            >
-                                <?php echo htmlspecialchars($wp["name"]); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
 
-                    <label>Workplace</label>
-                    <input type="text" name="workplace" value="<?php echo htmlspecialchars($editShift["workplace"]); ?>" required>
+                    <label>Type</label>
+                    <select name="entry_type" id="entryType" onchange="toggleEntryTypeFields()">
+                        <option value="shift" <?php echo (($editShift["entry_type"] ?? "shift") === "shift") ? "selected" : ""; ?>>Work shift</option>
+                        <option value="plan" <?php echo (($editShift["entry_type"] ?? "") === "plan") ? "selected" : ""; ?>>Plan</option>
+                    </select>
+                    <div id="workShiftFields">
+                        <label>Choose workplace</label>
+                        <select name="workplace_id" id="workplaceSelect" onchange="syncWorkplaceData()">
+                            <option value="">Choose workplace</option>
+                            <?php foreach ($workplacesForSelect as $wp): ?>
+                                <option
+                                    value="<?php echo $wp["id"]; ?>"
+                                    data-name="<?php echo htmlspecialchars($wp["name"]); ?>"
+                                    data-color="<?php echo htmlspecialchars($wp["color"]); ?>"
+                                    <?php echo ((string)($editShift["workplace_id"] ?? "") === (string)$wp["id"]) ? 'selected' : ''; ?>
+                                >
+                                    <?php echo htmlspecialchars($wp["name"]); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+
+                        <label>Workplace</label>
+                        <input type="text" name="workplace" value="<?php echo htmlspecialchars($editShift["workplace"]); ?>" required>
+                    </div>
+                    
+                    <div id="planFields">
+                        <label>Comment / plan note</label>
+                        <input type="text" name="note" value="<?php echo htmlspecialchars($editShift["note"] ?? ""); ?>" placeholder="Doctor, school, trip, meeting...">
+                    </div>
 
                     <label>Color</label>
                     <input type="color" name="color" value="<?php echo htmlspecialchars($editShift["color"]); ?>">
@@ -1379,7 +1437,33 @@ function syncWorkplaceData() {
     }
 }
 
-window.addEventListener('load', syncWorkplaceData);
+function toggleEntryTypeFields() {
+    const entryType = document.getElementById('entryType');
+    const workShiftFields = document.getElementById('workShiftFields');
+    const planFields = document.getElementById('planFields');
+    const workplaceSelect = document.getElementById('workplaceSelect');
+    const workplaceInput = document.querySelector('input[name="workplace"]');
+
+    if (!entryType) return;
+
+    if (entryType.value === 'plan') {
+        if (workShiftFields) workShiftFields.style.display = 'none';
+        if (planFields) planFields.style.display = 'flex';
+        if (workplaceSelect) workplaceSelect.required = false;
+        if (workplaceInput) workplaceInput.required = false;
+    } else {
+        if (workShiftFields) workShiftFields.style.display = 'flex';
+        if (planFields) planFields.style.display = 'none';
+        if (workplaceSelect) workplaceSelect.required = true;
+        if (workplaceInput) workplaceInput.required = true;
+        syncWorkplaceData();
+    }
+}
+
+window.addEventListener('load', function () {
+    toggleEntryTypeFields();
+    syncWorkplaceData();
+});
 </script>
 
 </body>
