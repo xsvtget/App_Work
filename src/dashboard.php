@@ -1171,8 +1171,20 @@ if (!$editShift) {
                     <input type="hidden" name="action" value="import_excel">
                     <input type="hidden" name="excel_data" id="excel_data">
 
-                    <label>Workplace</label>
-                    <input type="text" name="import_workplace" value="Sabi Madla" placeholder="Workplace">
+                    <label>Choose workplace</label>
+                    <select name="workplace_id" id="workplaceSelect" onchange="syncWorkplaceData()">
+                        <option value="">Manual / no linked workplace</option>
+                        <?php foreach ($workplacesForSelect as $wp): ?>
+                            <option
+                                value="<?php echo $wp["id"]; ?>"
+                                data-name="<?php echo htmlspecialchars($wp["name"]); ?>"
+                                data-color="<?php echo htmlspecialchars($wp["color"]); ?>"
+                                <?php echo ((string)($editShift["workplace_id"] ?? "") === (string)$wp["id"]) ? 'selected' : ''; ?>
+                            >
+                                <?php echo htmlspecialchars($wp["name"]); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
 
                     <label>Color</label>
                     <input type="color" name="import_color" value="#3b82f6">
