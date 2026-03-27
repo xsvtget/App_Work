@@ -201,14 +201,34 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     if (isset($_POST["action"]) && $_POST["action"] === "import_excel") {
         $json = $_POST["excel_data"] ?? '[]';
-        $defaultWorkplace = trim($_POST["import_workplace"] ?? 'Sabi Madla');
+        $import_workplace_id = !empty($_POST["workplace_id"]) ? (int)$_POST["workplace_id"] : 0;
         $defaultColor = trim($_POST["import_color"] ?? '#3b82f6');
         $rows = json_decode($json, true);
 
+        if ($import_workplace_id <= 0) {
+            header("Location: dashboard.php?month=" . $month . "&year=" . $year . "&selected_date=" . urlencode($selectedDate));
+            exit();
+        }
+
+        $stmtWpImport = $conn->prepare("SELECT name, color FROM workplaces WHERE id = ? AND user_id = ? LIMIT 1");
+        $stmtWpImport->bind_param("ii", $import_workplace_id, $user_id);
+        $stmtWpImport->execute();
+        $wpImportResult = $stmtWpImport->get_result();
+        $importWorkplace = $wpImportResult->fetch_assoc();
+        $stmtWpImport->close();
+
+        if (!$importWorkplace) {
+            header("Location: dashboard.php?month=" . $month . "&year=" . $year . "&selected_date=" . urlencode($selectedDate));
+            exit();
+        }
+
+        $defaultWorkplace = $importWorkplace["name"];
+        $defaultColor = $importWorkplace["color"] ?: $defaultColor;
+
         if (is_array($rows)) {
             $stmt = $conn->prepare("
-                INSERT INTO work_shifts (user_id, work_date, start_time, end_time, workplace, color)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO work_shifts (user_id, entry_type, workplace_id, work_date, start_time, end_time, workplace, color, note)
+                VALUES (?, 'shift', ?, ?, ?, ?, ?, ?, NULL)
             ");
 
             foreach ($rows as $row) {
@@ -217,7 +237,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 $end_time = isset($row["end_decimal"]) ? decimalToTime($row["end_decimal"]) : null;
 
                 if ($work_date && $start_time && $end_time) {
-                    $stmt->bind_param("isssss", $user_id, $work_date, $start_time, $end_time, $defaultWorkplace, $defaultColor);
+                    $stmt->bind_param(
+                        "iisssss",
+                        $user_id,
+                        $import_workplace_id,
+                        $work_date,
+                        $start_time,
+                        $end_time,
+                        $defaultWorkplace,
+                        $defaultColor
+                    );
                     $stmt->execute();
                 }
             }
@@ -1212,19 +1241,21 @@ if (!$editShift) {
                 <a href="download_template.php?month=<?php echo $month; ?>&year=<?php echo $year; ?>" class="template-btn" style="margin-top:10px;">
                     Download template
                 </a>
+
+                <?php if (empty($workplacesForSelect)): ?>
+                    <p class="small" style="color:#b91c1c;">Create a workplace in Salary settings first.</p>
+                <?php endif; ?>
                 <form method="POST" id="excelImportForm" class="form" style="margin-top: 12px;">
                     <input type="hidden" name="action" value="import_excel">
                     <input type="hidden" name="excel_data" id="excel_data">
 
                     <label>Choose workplace</label>
-                    <select name="workplace_id" id="workplaceSelect" onchange="syncWorkplaceData()">
-                        <option value="">Manual / no linked workplace</option>
+                    <select name="workplace_id" id="importWorkplaceSelect" required onchange="syncImportWorkplaceData()">
+                        <option value="">Choose workplace</option>
                         <?php foreach ($workplacesForSelect as $wp): ?>
                             <option
                                 value="<?php echo $wp["id"]; ?>"
-                                data-name="<?php echo htmlspecialchars($wp["name"]); ?>"
                                 data-color="<?php echo htmlspecialchars($wp["color"]); ?>"
-                                <?php echo ((string)($editShift["workplace_id"] ?? "") === (string)$wp["id"]) ? 'selected' : ''; ?>
                             >
                                 <?php echo htmlspecialchars($wp["name"]); ?>
                             </option>
@@ -1237,7 +1268,9 @@ if (!$editShift) {
                     <label>Excel file</label>
                     <input type="file" id="excelFile" accept=".xlsx,.xls" required>
 
-                    <button type="submit" class="import-btn">Import Excel</button>
+                    <button type="submit" class="import-btn" <?php echo empty($workplacesForSelect) ? 'disabled' : ''; ?>>
+                        Import Excel
+                    </button>
                 </form>
             </div>
         </details>
@@ -1464,6 +1497,24 @@ window.addEventListener('load', function () {
     toggleEntryTypeFields();
     syncWorkplaceData();
 });
+</script>
+
+<script>
+function syncImportWorkplaceData() {
+    const select = document.getElementById('importWorkplaceSelect');
+    if (!select) return;
+
+    const selected = select.options[select.selectedIndex];
+    const color = selected.getAttribute('data-color');
+
+    const colorInput = document.querySelector('input[name="import_color"]');
+
+    if (color && colorInput) {
+        colorInput.value = color;
+    }
+}
+
+window.addEventListener('load', syncImportWorkplaceData);
 </script>
 
 </body>
