@@ -181,7 +181,9 @@ if (!isset($_SESSION["user_id"])) {
                 </tr>
             </table>
 
-            <a href="template.xlsx" class="download-btn">Download sample file</a>
+            <a href="download_template.php?month=<?php echo $month; ?>&year=<?php echo $year; ?>" class="template-btn" style="margin-top:10px;">
+                    Download template
+                </a>
         </div>
 
         <div class="card">
