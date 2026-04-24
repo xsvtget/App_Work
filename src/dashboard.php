@@ -101,6 +101,29 @@ function calculateHours($start, $end) {
 }
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
+    if (isset($_POST["action"]) && $_POST["action"] === "delete_selected_days") {
+        $selected_days = $_POST["selected_days"] ?? [];
+        $month_redirect = (int)($_POST["month"] ?? date("n"));
+        $year_redirect = (int)($_POST["year"] ?? date("Y"));
+
+        if (!empty($selected_days) && is_array($selected_days)) {
+            $stmt = $conn->prepare("DELETE FROM work_shifts WHERE user_id = ? AND work_date = ?");
+
+            foreach ($selected_days as $day) {
+                $work_date = trim($day);
+
+                if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $work_date)) {
+                    $stmt->bind_param("is", $user_id, $work_date);
+                    $stmt->execute();
+                }
+            }
+
+            $stmt->close();
+        }
+
+        header("Location: dashboard.php?month=" . $month_redirect . "&year=" . $year_redirect);
+        exit();
+    }
     if (isset($_POST["action"]) && $_POST["action"] === "delete_day_shifts") {
         $work_date = $_POST["work_date"] ?? '';
         $month_redirect = (int)($_POST["month"] ?? date("n"));
@@ -1105,6 +1128,25 @@ if (!$editShift) {
             flex-direction: column;
             gap: 10px;
         }
+        .day-checkbox {
+                display: none;
+            }
+
+            .selectable-day {
+                cursor: pointer;
+            }
+
+            .selectable-day.multi-selected {
+                outline: 3px solid #14b8a6;
+                background: rgba(20, 184, 166, 0.15);
+            }
+
+            .day-open-link {
+                display: block;
+                color: inherit;
+                text-decoration: none;
+                height: 100%;
+            }
     </style>
 </head>
 <body>
@@ -1165,6 +1207,11 @@ if (!$editShift) {
             </div>
 
             <div class="calendar-grid">
+                
+                <form method="POST" id="multiDeleteForm">
+                    <input type="hidden" name="action" value="delete_selected_days">
+                    <input type="hidden" name="month" value="<?= $month ?>">
+                    <input type="hidden" name="year" value="<?= $year ?>">
                 <?php
                 for ($i = 1; $i < $firstWeekDay; $i++) {
                     echo '<div class="day empty"></div>';
@@ -1174,7 +1221,9 @@ if (!$editShift) {
                     $dateString = sprintf("%04d-%02d-%02d", $year, $month, $day);
                     $selectedClass = ($selectedDate === $dateString) ? ' selected' : '';
 
-                    echo '<a class="day' . $selectedClass . '" href="?month=' . $month . '&year=' . $year . '&selected_date=' . $dateString . '">';
+                    echo '<div class="day selectable-day ' . $selectedClass . '" data-date="' . $dateString . '">';
+                    echo '<input type="checkbox" name="selected_days[]" value="' . $dateString . '" class="day-checkbox">';
+                    echo '<a class="day-open-link" href="?month=' . $month . '&year=' . $year . '&selected_date=' . $dateString . '">';
                     echo '<div class="day-number">' . $day . '</div>';
                     echo '<div class="day-content">';
 
@@ -1199,8 +1248,11 @@ if (!$editShift) {
 
                     echo '</div>';
                     echo '</a>';
+                    echo '</div>';
                 }
                 ?>
+                </form>
+
             </div>
         </div>
 
@@ -1367,7 +1419,9 @@ if (!$editShift) {
                     <input type="hidden" name="work_date" value="<?php echo htmlspecialchars($selectedDate); ?>">
                     <input type="hidden" name="month" value="<?php echo $month; ?>">
                     <input type="hidden" name="year" value="<?php echo $year; ?>">
-                    <button type="submit" class="delete-big-btn">Delete selected day</button>
+                    <button type="submit" form="multiDeleteForm" class="delete-selected-btn">
+                        Delete selected days
+                    </button>
                 </form>
 
                 <form method="POST" onsubmit="return confirm('Delete ALL shifts for this month? This cannot be undone.');" class="form" style="margin-top: 12px;">
@@ -1526,6 +1580,19 @@ function syncImportWorkplaceData() {
 
 window.addEventListener('load', syncImportWorkplaceData);
 </script>
+<script>
+document.querySelectorAll(".selectable-day").forEach(day => {
+    day.addEventListener("click", function (e) {
+        if (e.target.closest(".day-open-link")) {
+            return;
+        }
 
+        const checkbox = this.querySelector(".day-checkbox");
+        checkbox.checked = !checkbox.checked;
+
+        this.classList.toggle("multi-selected", checkbox.checked);
+    });
+});
+</script>
 </body>
 </html>
