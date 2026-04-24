@@ -1129,24 +1129,13 @@ if (!$editShift) {
             gap: 10px;
         }
         .day-checkbox {
-                display: none;
-            }
+            display: none;
+        }
 
-            .selectable-day {
-                cursor: pointer;
-            }
-
-            .selectable-day.multi-selected {
-                outline: 3px solid #14b8a6;
-                background: rgba(20, 184, 166, 0.15);
-            }
-
-            .day-open-link {
-                display: block;
-                color: inherit;
-                text-decoration: none;
-                height: 100%;
-            }
+        .selectable-day.multi-selected {
+            outline: 3px solid #14b8a6;
+            background: rgba(20, 184, 166, 0.15);
+        }
     </style>
 </head>
 <body>
@@ -1208,10 +1197,7 @@ if (!$editShift) {
 
             <div class="calendar-grid">
                 
-                <form method="POST" id="multiDeleteForm">
-                    <input type="hidden" name="action" value="delete_selected_days">
-                    <input type="hidden" name="month" value="<?= $month ?>">
-                    <input type="hidden" name="year" value="<?= $year ?>">
+                
                 <?php
                 for ($i = 1; $i < $firstWeekDay; $i++) {
                     echo '<div class="day empty"></div>';
@@ -1221,9 +1207,8 @@ if (!$editShift) {
                     $dateString = sprintf("%04d-%02d-%02d", $year, $month, $day);
                     $selectedClass = ($selectedDate === $dateString) ? ' selected' : '';
 
-                    echo '<div class="day selectable-day ' . $selectedClass . '" data-date="' . $dateString . '">';
-                    echo '<input type="checkbox" name="selected_days[]" value="' . $dateString . '" class="day-checkbox">';
-                    echo '<a class="day-open-link" href="?month=' . $month . '&year=' . $year . '&selected_date=' . $dateString . '">';
+                    echo '<a class="day selectable-day ' . $selectedClass . '" href="?month=' . $month . '&year=' . $year . '&selected_date=' . $dateString . '">';
+                    echo '<input type="checkbox" form="multiDeleteForm" name="selected_days[]" value="' . $dateString . '" class="day-checkbox">';
                     echo '<div class="day-number">' . $day . '</div>';
                     echo '<div class="day-content">';
 
@@ -1248,10 +1233,10 @@ if (!$editShift) {
 
                     echo '</div>';
                     echo '</a>';
-                    echo '</div>';
+                    
                 }
                 ?>
-                </form>
+                
 
             </div>
         </div>
@@ -1414,12 +1399,12 @@ if (!$editShift) {
         <details class="card">
             <summary>Delete shifts</summary>
             <div class="inside">
-                <form method="POST" onsubmit="return confirm('Delete all shifts for the selected day?');" class="form">
-                    <input type="hidden" name="action" value="delete_day_shifts">
-                    <input type="hidden" name="work_date" value="<?php echo htmlspecialchars($selectedDate); ?>">
-                    <input type="hidden" name="month" value="<?php echo $month; ?>">
-                    <input type="hidden" name="year" value="<?php echo $year; ?>">
-                    <button type="submit" form="multiDeleteForm" class="delete-selected-btn">
+                <form method="POST" id="multiDeleteForm">
+                    <input type="hidden" name="action" value="delete_selected_days">
+                    <input type="hidden" name="month" value="<?= $month ?>">
+                    <input type="hidden" name="year" value="<?= $year ?>">
+
+                    <button type="submit" class="delete-selected-btn">
                         Delete selected days
                     </button>
                 </form>
@@ -1583,14 +1568,17 @@ window.addEventListener('load', syncImportWorkplaceData);
 <script>
 document.querySelectorAll(".selectable-day").forEach(day => {
     day.addEventListener("click", function (e) {
-        if (e.target.closest(".day-open-link")) {
-            return;
-        }
+        e.preventDefault();
 
         const checkbox = this.querySelector(".day-checkbox");
-        checkbox.checked = !checkbox.checked;
+        if (!checkbox) return;
 
+        checkbox.checked = !checkbox.checked;
         this.classList.toggle("multi-selected", checkbox.checked);
+    });
+
+    day.addEventListener("dblclick", function () {
+        window.location.href = this.href;
     });
 });
 </script>
