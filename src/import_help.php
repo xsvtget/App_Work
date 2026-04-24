@@ -5,6 +5,17 @@ if (!isset($_SESSION["user_id"])) {
     header("Location: login.php");
     exit();
 }
+
+$month = isset($_GET["month"]) ? (int)$_GET["month"] : (int)date("n");
+$year = isset($_GET["year"]) ? (int)$_GET["year"] : (int)date("Y");
+
+if ($month < 1 || $month > 12) {
+    $month = (int)date("n");
+}
+
+if ($year < 2000 || $year > 2100) {
+    $year = (int)date("Y");
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -130,6 +141,29 @@ if (!isset($_SESSION["user_id"])) {
                 font-size: 14px;
             }
         }
+        .template-btn,
+        .download-btn {
+            display: inline-block;
+            background: #007bff;
+            color: #fff;
+            padding: 10px 18px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-top: 10px;
+        }
+
+        .template-btn:hover,
+        .download-btn:hover {
+            background: #0056b3;
+            color: #fff;
+            text-decoration: none;
+            transform: translateY(-1px);
+        }
     </style>
 </head>
 <body>
@@ -181,9 +215,9 @@ if (!isset($_SESSION["user_id"])) {
                 </tr>
             </table>
 
-            <a href="download_template.php?month=<?php echo $month; ?>&year=<?php echo $year; ?>" class="template-btn" style="margin-top:10px;">
-                    Download template
-                </a>
+            <a href="download_template.php?month=<?php echo $month; ?>&year=<?php echo $year; ?>" class="download-btn">
+                Download template
+            </a>
         </div>
 
         <div class="card">
