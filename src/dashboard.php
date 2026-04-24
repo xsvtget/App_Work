@@ -1136,6 +1136,18 @@ if (!$editShift) {
             outline: 3px solid #14b8a6;
             background: rgba(20, 184, 166, 0.15);
         }
+        .day-checkbox {
+            display: none;
+        }
+
+        .selectable-day.multi-selected {
+            outline: 3px solid #14b8a6;
+            background: rgba(20, 184, 166, 0.15);
+        }
+
+        body.select-mode .selectable-day {
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -1399,12 +1411,16 @@ if (!$editShift) {
         <details class="card">
             <summary>Delete shifts</summary>
             <div class="inside">
+                <button type="button" id="toggleSelectMode" class="delete-selected-btn">
+                    Select days
+                </button>
+
                 <form method="POST" id="multiDeleteForm">
                     <input type="hidden" name="action" value="delete_selected_days">
                     <input type="hidden" name="month" value="<?= $month ?>">
                     <input type="hidden" name="year" value="<?= $year ?>">
 
-                    <button type="submit" class="delete-selected-btn">
+                    <button type="submit" id="deleteSelectedDaysBtn" class="delete-selected-btn" style="display:none;">
                         Delete selected days
                     </button>
                 </form>
@@ -1566,8 +1582,32 @@ function syncImportWorkplaceData() {
 window.addEventListener('load', syncImportWorkplaceData);
 </script>
 <script>
+let selectMode = false;
+
+const toggleBtn = document.getElementById("toggleSelectMode");
+const deleteBtn = document.getElementById("deleteSelectedDaysBtn");
+
+toggleBtn.addEventListener("click", function () {
+    selectMode = !selectMode;
+
+    document.body.classList.toggle("select-mode", selectMode);
+    deleteBtn.style.display = selectMode ? "block" : "none";
+    toggleBtn.textContent = selectMode ? "Cancel selection" : "Select days";
+
+    if (!selectMode) {
+        document.querySelectorAll(".day-checkbox").forEach(cb => cb.checked = false);
+        document.querySelectorAll(".selectable-day").forEach(day => {
+            day.classList.remove("multi-selected");
+        });
+    }
+});
+
 document.querySelectorAll(".selectable-day").forEach(day => {
     day.addEventListener("click", function (e) {
+        if (!selectMode) {
+            return;
+        }
+
         e.preventDefault();
 
         const checkbox = this.querySelector(".day-checkbox");
@@ -1575,10 +1615,6 @@ document.querySelectorAll(".selectable-day").forEach(day => {
 
         checkbox.checked = !checkbox.checked;
         this.classList.toggle("multi-selected", checkbox.checked);
-    });
-
-    day.addEventListener("dblclick", function () {
-        window.location.href = this.href;
     });
 });
 </script>
