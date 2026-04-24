@@ -304,15 +304,20 @@ while ($row = $result->fetch_assoc()) {
     $hours = calculateHours($row["start_time"], $row["end_time"]);
     $row["hours"] = $hours;
     $calendarShifts[$row["work_date"]][] = $row;
-    $monthlyHours += $hours;
 
-    if (!isset($workplaceTotals[$row["workplace"]])) {
-        $workplaceTotals[$row["workplace"]] = 0;
-    }
-    $workplaceTotals[$row["workplace"]] += $hours;
+    // Count only real work shifts in monthly total and workplace totals
+    if ($row["entry_type"] === "shift") {
+        $monthlyHours += $hours;
 
-    if (!isset($workplaceColors[$row["workplace"]])) {
-        $workplaceColors[$row["workplace"]] = $row["color"];
+        if (!isset($workplaceTotals[$row["workplace"]])) {
+            $workplaceTotals[$row["workplace"]] = 0;
+        }
+
+        $workplaceTotals[$row["workplace"]] += $hours;
+
+        if (!isset($workplaceColors[$row["workplace"]])) {
+            $workplaceColors[$row["workplace"]] = $row["color"];
+        }
     }
 }
 $stmt->close();
@@ -331,7 +336,12 @@ $selectedShifts = [];
 $dayTotal = 0;
 while ($row = $selectedResult->fetch_assoc()) {
     $row["hours"] = calculateHours($row["start_time"], $row["end_time"]);
-    $dayTotal += $row["hours"];
+
+    // Count only real work shifts in selected day total
+    if ($row["entry_type"] === "shift") {
+        $dayTotal += $row["hours"];
+    }
+
     $selectedShifts[] = $row;
 }
 $stmt->close();
