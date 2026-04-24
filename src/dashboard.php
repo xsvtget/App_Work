@@ -1148,6 +1148,35 @@ if (!$editShift) {
         body.select-mode .selectable-day {
             cursor: pointer;
         }
+
+                .delete-selected-btn,
+        .delete-days-btn {
+            width: 100%;
+            border: none;
+            border-radius: 12px;
+            padding: 14px 18px;
+            font-weight: 700;
+            font-size: 15px;
+            cursor: pointer;
+            margin-bottom: 12px;
+            color: white;
+        }
+
+        .delete-selected-btn {
+            background: #14b8a6;
+        }
+
+        .delete-days-btn {
+            background: #f59e0b;
+        }
+
+        .delete-selected-btn:hover {
+            background: #0f9f91;
+        }
+
+        .delete-days-btn:hover {
+            background: #d97706;
+        }
     </style>
 </head>
 <body>
@@ -1420,7 +1449,7 @@ if (!$editShift) {
                     <input type="hidden" name="month" value="<?= $month ?>">
                     <input type="hidden" name="year" value="<?= $year ?>">
 
-                    <button type="submit" id="deleteSelectedDaysBtn" class="delete-selected-btn" style="display:none;">
+                    <button type="submit" id="deleteSelectedDaysBtn" class="delete-days-btn" style="display:none;">
                         Delete selected days
                     </button>
                 </form>
