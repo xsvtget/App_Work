@@ -168,7 +168,9 @@ if ($year < 2000 || $year > 2100) {
 </head>
 <body>
     <div class="page">
-        <a href="dashboard.php" class="back-link">← Back to dashboard</a>
+        <a href="dashboard.php?month=<?= $month ?>&year=<?= $year ?>">
+            ← Back to dashboard
+        </a>
 
         <div class="card">
             <h1>Excel import template</h1>
@@ -215,7 +217,7 @@ if ($year < 2000 || $year > 2100) {
                 </tr>
             </table>
 
-            <a href="download_template.php?month=<?php echo $month; ?>&year=<?php echo $year; ?>" class="download-btn">
+            <a href="download_template.php?month=<?= $month ?>&year=<?= $year ?>">
                 Download template
             </a>
         </div>
