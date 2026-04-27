@@ -168,7 +168,7 @@ if ($year < 2000 || $year > 2100) {
 </head>
 <body>
     <div class="page">
-        <a href="dashboard.php?month=<?= $month ?>&year=<?= $year ?>">
+        <a href="dashboard.php?month=<?= $month ?>&year=<?= $year ?>" class="back-link">
             ← Back to dashboard
         </a>
 
@@ -217,7 +217,7 @@ if ($year < 2000 || $year > 2100) {
                 </tr>
             </table>
 
-            <a href="download_template.php?month=<?= $month ?>&year=<?= $year ?>">
+            <a href="download_template.php?month=<?= $month ?>&year=<?= $year ?>" class="download-btn">
                 Download template
             </a>
         </div>

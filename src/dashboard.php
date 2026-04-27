@@ -1325,11 +1325,11 @@ if (!$editShift) {
             <div class="inside">
                 <p class="small">Upload file and choose job + color.</p>
 
-                <a href="import_help.php?month=<?= $month ?>&year=<?= $year ?>">
+                <a href="import_help.php?month=<?= $month ?>&year=<?= $year ?>" class="template-btn">
                     Template / Example
                 </a>
 
-                <a href="download_template.php?month=<?= $month ?>&year=<?= $year ?>">
+                <a href="download_template.php?month=<?= $month ?>&year=<?= $year ?>" class="template-btn" style="margin-top:10px;">
                     Download template
                 </a>
 
