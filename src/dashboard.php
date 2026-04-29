@@ -1,20 +1,41 @@
 <?php
+/*
+    dashboard.php
+
+    Ця сторінка показує календар користувача, його робочі зміни,
+    плани, години за день і місяць, а також дозволяє додавати,
+    редагувати, видаляти та імпортувати зміни з Excel.
+
+    Сторінка працює тільки для залогіненого користувача.
+    Усі SQL-запити фільтруються по user_id, щоб кожен користувач
+    бачив тільки свої дані.
+*/
+
+
+
+// Показує всі помилки під час розробки
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
+// Запускає сесію, щоб зберігати user_id після входу
 session_start();
 
+// Дані для підключення до бази даних беруться з Docker env
 $host = "db";
 $dbname = getenv("MARIADB_DATABASE");
 $username = getenv("MARIADB_USER");
 $password = getenv("MARIADB_APP_PASSWORD");
 
+// Підключення до MariaDB
 $conn = new mysqli($host, $username, $password, $dbname);
 
+// Якщо підключення не вдалося — зупинити сторінку
 if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
 
-/* REMEMBER ME: якщо сесії нема, але є cookie */
+// REMEMBER ME
+// Якщо користувач не має активної сесії, але має cookie remember_token,
+// система автоматично шукає його в базі і створює сесію
 if (!isset($_SESSION["user_id"]) && isset($_COOKIE["remember_token"])) {
     $cookieToken = $_COOKIE["remember_token"];
 
@@ -32,7 +53,8 @@ if (!isset($_SESSION["user_id"]) && isset($_COOKIE["remember_token"])) {
     $stmtAuto->close();
 }
 
-/* ТІЛЬКИ ПІСЛЯ ЦЬОГО перевірка входу */
+// Перевіряє, чи користувач увійшов у систему.
+// Якщо ні — перекидає на login.php
 if (!isset($_SESSION["user_id"])) {
     header("Location: login.php");
     exit();
@@ -40,6 +62,8 @@ if (!isset($_SESSION["user_id"])) {
 
 $user_id = (int)$_SESSION["user_id"];
 $workplacesForSelect = [];
+// Отримує всі workplaces цього користувача,
+// щоб показати їх у select/dropdown
 $stmtWp = $conn->prepare("SELECT id, name, color FROM workplaces WHERE user_id = ? ORDER BY name ASC");
 $stmtWp->bind_param("i", $user_id);
 $stmtWp->execute();
@@ -61,6 +85,7 @@ $user_id = (int)$_SESSION["user_id"];
 $user_name = $_SESSION["username"] ?? "User";
 $profile_image = null;
 
+// Отримує фото профілю користувача з таблиці users
 $stmtUser = $conn->prepare("SELECT profile_image FROM users WHERE id = ?");
 $stmtUser->bind_param("i", $user_id);
 $stmtUser->execute();
@@ -72,6 +97,8 @@ if ($userResult && $userResult->num_rows === 1) {
 }
 $stmtUser->close();
 
+// Перетворює число з Excel у нормальний формат часу.
+// Наприклад: 8.5 стане 08:30:00
 function decimalToTime($value) {
     if ($value === null || $value === '') return null;
 
@@ -87,11 +114,15 @@ function decimalToTime($value) {
     return sprintf('%02d:%02d:00', $hours, $minutes);
 }
 
+// Форматує час для input type="time".
+// Наприклад: 08:30:00 стане 08:30
 function formatTimeForInput($time) {
     if (!$time) return '';
     return substr($time, 0, 5);
 }
 
+// Рахує кількість годин між start_time і end_time.
+// Наприклад: 10:00 до 15:30 = 5.5 годин
 function calculateHours($start, $end) {
     if (!$start || !$end) return 0;
     $startTs = strtotime($start);
@@ -101,6 +132,8 @@ function calculateHours($start, $end) {
 }
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
+    // Якщо користувач натиснув видалити вибрані дні,
+    // система видаляє всі зміни за ці дати
     if (isset($_POST["action"]) && $_POST["action"] === "delete_selected_days") {
         $selected_days = $_POST["selected_days"] ?? [];
         $month_redirect = (int)($_POST["month"] ?? date("n"));
@@ -124,6 +157,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         header("Location: dashboard.php?month=" . $month_redirect . "&year=" . $year_redirect);
         exit();
     }
+    // Видаляє всі зміни за один конкретний день
     if (isset($_POST["action"]) && $_POST["action"] === "delete_day_shifts") {
         $work_date = $_POST["work_date"] ?? '';
         $month_redirect = (int)($_POST["month"] ?? date("n"));
@@ -139,6 +173,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         header("Location: dashboard.php?month=" . $month_redirect . "&year=" . $year_redirect . "&selected_date=" . urlencode($work_date));
         exit();
     }
+    // Зберігає або оновлює зміну/план
     if (isset($_POST["action"]) && $_POST["action"] === "save_shift") {
         $id = !empty($_POST["id"]) ? (int)$_POST["id"] : 0;
         $entry_type = $_POST["entry_type"] ?? 'shift';
@@ -150,16 +185,21 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $color = trim($_POST["color"] ?? '#3b82f6');
         $note = trim($_POST["note"] ?? '');
 
+        // Якщо це звичайна робоча зміна,
+        // workplace обов’язково має бути вибраний
         if ($entry_type === 'shift' && empty($workplace_id)) {
             header("Location: dashboard.php?month=" . $month . "&year=" . $year . "&selected_date=" . urlencode($work_date));
             exit();
         }
 
+        // Якщо це plan, то workplace не потрібен,
+        // і в назву записується note або слово Plan
         if ($entry_type === 'plan') {
             $workplace_id = null;
             $workplace = $note !== '' ? $note : 'Plan';
         }
 
+        // Якщо id існує — оновлюємо стару зміну
         if ($id > 0) {
            $stmt = $conn->prepare("
                 UPDATE work_shifts
@@ -182,6 +222,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $stmt->execute();
             $stmt->close();
         } 
+        // Якщо id немає — створюємо нову зміну
         else {
             $stmt = $conn->prepare("
                 INSERT INTO work_shifts (user_id, entry_type, workplace_id, work_date, start_time, end_time, workplace, color, note)
@@ -206,7 +247,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         header("Location: dashboard.php?selected_date=" . urlencode($work_date));
         exit();
     }
-
+    // Видаляє одну конкретну зміну по id
     if (isset($_POST["action"]) && $_POST["action"] === "delete_shift") {
         $id = (int)($_POST["id"] ?? 0);
         $selected_date = $_POST["selected_date"] ?? date("Y-m-d");
@@ -222,18 +263,22 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         exit();
     }
 
+    // Імпортує зміни з Excel
     if (isset($_POST["action"]) && $_POST["action"] === "import_excel") {
         $json = $_POST["excel_data"] ?? '[]';
         $import_workplace_id = !empty($_POST["workplace_id"]) ? (int)$_POST["workplace_id"] : 0;
         $defaultColor = trim($_POST["import_color"] ?? '#3b82f6');
         $rows = json_decode($json, true);
 
+        // Перевіряє, чи користувач вибрав workplace перед імпортом.
+        // Якщо ні — імпорт не виконується
         if ($import_workplace_id <= 0) {
             header("Location: dashboard.php?month=" . $month . "&year=" . $year . "&selected_date=" . urlencode($selectedDate));
             exit();
         }
-
+        // Отримує назву і колір workplace, який вибрали для імпорту
         $stmtWpImport = $conn->prepare("SELECT name, color FROM workplaces WHERE id = ? AND user_id = ? LIMIT 1");
+
         $stmtWpImport->bind_param("ii", $import_workplace_id, $user_id);
         $stmtWpImport->execute();
         $wpImportResult = $stmtWpImport->get_result();
@@ -254,6 +299,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 VALUES (?, 'shift', ?, ?, ?, ?, ?, ?, NULL)
             ");
 
+            // Додає кожен рядок з Excel як робочу зміну
             foreach ($rows as $row) {
                 $work_date = $row["work_date"] ?? null;
                 $start_time = isset($row["start_decimal"]) ? decimalToTime($row["start_decimal"]) : null;
@@ -282,22 +328,30 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     }
 }
 
+// Отримує місяць і рік з URL.
+// Якщо їх немає — бере поточний місяць і рік
 $month = isset($_GET["month"]) ? (int)$_GET["month"] : (int)date("n");
 $year = isset($_GET["year"]) ? (int)$_GET["year"] : (int)date("Y");
 
+// Якщо місяць вийшов за межі 1–12,
+// система переходить на попередній або наступний рік
 if ($month < 1) { $month = 12; $year--; }
 if ($month > 12) { $month = 1; $year++; }
 
+// Рахує перший день місяця,
+// кількість днів у місяці і день тижня
 $firstDay = mktime(0, 0, 0, $month, 1, $year);
 $daysInMonth = (int)date("t", $firstDay);
 $firstWeekDay = (int)date("N", $firstDay);
 
+// Масив назв місяців для показу в календарі
 $monthNames = [
     1 => "January", 2 => "February", 3 => "March", 4 => "April",
     5 => "May", 6 => "June", 7 => "July", 8 => "August",
     9 => "September", 10 => "October", 11 => "November", 12 => "December"
 ];
 
+// Дані для кнопок попередній / наступний місяць
 $prevMonth = $month - 1;
 $prevYear = $year;
 if ($prevMonth < 1) { $prevMonth = 12; $prevYear--; }
@@ -306,8 +360,11 @@ $nextMonth = $month + 1;
 $nextYear = $year;
 if ($nextMonth > 12) { $nextMonth = 1; $nextYear++; }
 
+// Дата, яку користувач вибрав у календарі.
+// Якщо нічого не вибрано — сьогоднішня дата
 $selectedDate = $_GET["selected_date"] ?? date("Y-m-d");
 
+// Отримує всі зміни користувача за вибраний місяць
 $stmt = $conn->prepare("
     SELECT id, entry_type, workplace_id, work_date, start_time, end_time, workplace, color, note
     FROM work_shifts
@@ -318,17 +375,24 @@ $stmt->bind_param("iii", $user_id, $month, $year);
 $stmt->execute();
 $result = $stmt->get_result();
 
+// Масив для змін у календарі
 $calendarShifts = [];
+// Загальна кількість годин за місяць
 $monthlyHours = 0;
+// Години окремо по кожному workplace
 $workplaceTotals = [];
+// Кольори для workplace
 $workplaceColors = [];
 
+// Проходить через всі зміни місяця,
+// рахує години і додає їх у календар
 while ($row = $result->fetch_assoc()) {
     $hours = calculateHours($row["start_time"], $row["end_time"]);
     $row["hours"] = $hours;
     $calendarShifts[$row["work_date"]][] = $row;
 
-    // Count only real work shifts in monthly total and workplace totals
+    // План не рахується як робочі години.
+    // У totals додаються тільки entry_type = shift
     if ($row["entry_type"] === "shift") {
         $monthlyHours += $hours;
 
@@ -345,6 +409,7 @@ while ($row = $result->fetch_assoc()) {
 }
 $stmt->close();
 
+// Отримує всі зміни за вибраний день
 $stmt = $conn->prepare("
     SELECT id, entry_type, workplace_id, work_date, start_time, end_time, workplace, color, note
     FROM work_shifts
@@ -360,7 +425,8 @@ $dayTotal = 0;
 while ($row = $selectedResult->fetch_assoc()) {
     $row["hours"] = calculateHours($row["start_time"], $row["end_time"]);
 
-    // Count only real work shifts in selected day total
+    // Рахує загальні години тільки за вибраний день
+    // і знову не рахує plan як роботу
     if ($row["entry_type"] === "shift") {
         $dayTotal += $row["hours"];
     }
@@ -370,6 +436,8 @@ while ($row = $selectedResult->fetch_assoc()) {
 $stmt->close();
 
 $editShift = null;
+// Якщо користувач натиснув Edit,
+// система знаходить цю зміну по edit_id
 if (isset($_GET["edit_id"])) {
     $edit_id = (int)$_GET["edit_id"];
     $stmt = $conn->prepare("
@@ -385,6 +453,8 @@ if (isset($_GET["edit_id"])) {
     $stmt->close();
 }
 
+// Якщо edit_id немає,
+// форма відкривається як порожня форма для нової зміни
 if (!$editShift) {
     $editShift = [
         "id" => "",
@@ -1464,7 +1534,7 @@ if (!$editShift) {
                     <button type="submit" class="delete-big-btn danger">Delete whole month</button>
                 </form>
             </div>
-    </details>
+        </details>
     </div>
 </div>
 
