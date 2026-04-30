@@ -1536,10 +1536,7 @@ if (!$editShift) {
                     <button type="submit" class="delete-big-btn danger">Delete whole month</button>
                 </form>
             </div>
-        <detail>
-
-
-
+        </details>
 
     </div>
 </div>
