@@ -1522,10 +1522,10 @@ if (!$editShift) {
                 <form method="POST" id="multiDeleteForm">
                     <input type="hidden" name="action" value="delete_selected_days">
                     <input type="hidden" name="month" value="<?= $month ?>">
-                    <input type="hidden" name="year" value="<?= $year ?>
-
+                    <input type="hidden" name="year" value="<?= $year ?>">
+ 
                     <button type="submit" id="deleteSelectedDaysBtn" class="delete-days-btn" style="display:none;">
-                        Delete selected days
+                        Delete selected days 
                     </button>
                 </form>
 
