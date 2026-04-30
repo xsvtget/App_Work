@@ -173,6 +173,19 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         header("Location: dashboard.php?month=" . $month_redirect . "&year=" . $year_redirect . "&selected_date=" . urlencode($work_date));
         exit();
     }
+    // Видаляє всі зміни за цілий місяць
+    if (isset($_POST["action"]) && $_POST["action"] === "delete_month_shifts") {
+        $delete_month = (int)($_POST["month"] ?? date("n"));
+        $delete_year = (int)($_POST["year"] ?? date("Y"));
+
+        $stmt = $conn->prepare("DELETE FROM work_shifts WHERE user_id = ? AND MONTH(work_date) = ? AND YEAR(work_date) = ?");
+        $stmt->bind_param("iii", $user_id, $delete_month, $delete_year);
+        $stmt->execute();
+        $stmt->close();
+
+        header("Location: dashboard.php?month=" . $delete_month . "&year=" . $delete_year);
+        exit();
+    }
     // Зберігає або оновлює зміну/план
     if (isset($_POST["action"]) && $_POST["action"] === "save_shift") {
         $id = !empty($_POST["id"]) ? (int)$_POST["id"] : 0;
