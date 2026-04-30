@@ -1510,6 +1510,8 @@ if (!$editShift) {
                 </div>
             </div>
         </details>
+
+        <!--
         <details class="card">
             <summary>Delete shifts</summary>
             <div class="inside">
@@ -1535,6 +1537,13 @@ if (!$editShift) {
                 </form>
             </div>
         </details>
+        -->
+        
+
+
+
+        <details>
+
     </div>
 </div>
 
