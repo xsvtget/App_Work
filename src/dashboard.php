@@ -1542,7 +1542,17 @@ if (!$editShift) {
 
 
 
-        <details>
+        <details class="card">
+            <summery>Delete shift</summery>
+            <div class="inside">
+                <button type="button" id ="toggleSelectMode" class="delete-selected-btn">
+                    Select days
+                </button>
+                <form method="POST" id="multiDeleteForm">
+                    <input type="hidden" name="action" value="delete_selected_days">
+                    <input type="hidden" name=""</input>
+                    <input type="hidden"
+
 
     </div>
 </div>
