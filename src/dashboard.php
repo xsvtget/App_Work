@@ -1514,25 +1514,26 @@ if (!$editShift) {
 
 
         <details class="card">
-            <summery>Delete shift</summery>
+            <summary>Delete shifts</summary>
             <div class="inside">
-                <button type="button" id ="toggleSelectMode" class="delete-selected-btn">
+                <button type="button" id="toggleSelectMode" class="delete-selected-btn">
                     Select days
                 </button>
+
                 <form method="POST" id="multiDeleteForm">
                     <input type="hidden" name="action" value="delete_selected_days">
                     <input type="hidden" name="month" value="<?= $month ?>">
                     <input type="hidden" name="year" value="<?= $year ?>">
- 
+
                     <button type="submit" id="deleteSelectedDaysBtn" class="delete-days-btn" style="display:none;">
-                        Delete selected days 
+                        Delete selected days
                     </button>
                 </form>
 
-                 <form method="POST" onsubmit="retuen confirm('Delete ALL shifts for this month? This cannot be undone.');" class="form" style="margin-top: 12px;">
-                    <input type="hidden" name="action" value="delete_selected_days">
-                    <input type="hidden" name="month" value="<?= $month ?>">
-                    <input type="hidden" name="year" value="<?= $year ?>">
+                <form method="POST" onsubmit="return confirm('Delete ALL shifts for this month? This cannot be undone.');" class="form" style="margin-top: 12px;">
+                    <input type="hidden" name="action" value="delete_month_shifts">
+                    <input type="hidden" name="month" value="<?php echo $month; ?>">
+                    <input type="hidden" name="year" value="<?php echo $year; ?>">
                     <button type="submit" class="delete-big-btn danger">Delete whole month</button>
                 </form>
             </div>
