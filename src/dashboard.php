@@ -1552,6 +1552,24 @@ if (!$editShift) {
             </div>
         </details>
  -->
+
+
+
+
+
+
+
+
+
+
+
+
+        <details class="card">
+            <summary>Delete shifts</summary>
+            <div class="inside">
+                <button type="button" id="toggleSelectMode" class="delete-selected-btn">
+                    Select days
+                </button>
     </div>
 </div>
 
