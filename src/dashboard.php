@@ -1282,6 +1282,7 @@ if (!$editShift) {
     <div class="top-actions desktop-actions">
         <a href="salary_settings.php" class="profile-btn">Salary settings</a>
         <a href="salary.php" class="profile-btn">Salary</a>
+        <a href="https://teams.microsoft.com/l/message/48:notes/1778479418495?context=%7B%22contextType%22%3A%22chat%22%2C%22oid%22%3A%228%3Aorgid%3A081ca37c-5651-41eb-a48a-7da25bef94f6%22%7D" class="profile-btn">Profile</a>
         <a href="edit_profile.php" class="profile-btn">Profile</a>
         <a href="logout.php" class="logout-btn">Logout</a>
     </div>
